@@ -1,0 +1,2652 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ACE LIVE Tracking</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Kanit -->
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS (XLSX Export) CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- html2pdf.js CDN for PDF Download -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Kanit', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Kanit', sans-serif;
+      background-color: #0f172a;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+
+      #pdfPreviewModal,
+      #pdfPreviewModal * {
+        visibility: visible;
+      }
+
+      #pdfPreviewModal {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      #pdfReportContent {
+        box-shadow: none !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="text-slate-100 min-h-screen flex flex-col justify-between">
+
+  <!-- Login Modal Overlay -->
+  <div id="loginOverlay"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+    <div
+      class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-2xl relative overflow-hidden">
+      <div class="absolute -top-10 -right-10 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl pointer-events-none">
+      </div>
+
+      <div class="text-center mb-6">
+        <img src="https://postimg.cc/n9mk4x6N/3b6e58d3" onerror="this.src='https://i.postimg.cc/brCBjNLY/424dd7460a4a5bc4c2f6af9bf82404f6.png'" alt="ACE LIVE Logo" class="h-14 w-auto mx-auto object-contain drop-shadow-lg mb-3">
+        <h2 class="text-xl font-bold text-white">ACE LIVE Tracking For MC</h2>
+        <p class="text-xs text-slate-400 mt-1">เข้าสู่ระบบเพื่อจัดการข้อมูล Daily Diamond & KPI</p>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            <i class="fa-solid fa-user text-purple-400 mr-1"></i> ชื่อผู้ใช้งาน (Username)
+          </label>
+          <input type="text" id="loginUsername" required placeholder="กรอกชื่อผู้ใช้งาน..." class="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            <i class="fa-solid fa-key text-pink-400 mr-1"></i> รหัสผ่าน (Password)
+          </label>
+          <input type="password" id="loginPassword" required placeholder="กรอกรหัสผ่าน..." class="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500 transition">
+        </div>
+
+        <div id="loginError"
+          class="text-rose-400 text-xs text-center hidden bg-rose-500/10 border border-rose-500/20 rounded-lg p-2.5">
+        </div>
+
+        <button type="submit" id="loginBtn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-purple-600/25 active:scale-[0.99] transition flex items-center justify-center gap-2 mt-2">
+          <i class="fa-solid fa-right-to-bracket"></i>
+          <span>เข้าสู่ระบบ (Login)</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Header App Bar (ปรับขยายขนาดแถบ Header py-5 sm:py-6 และเพิ่ม Live Clock & Alert Widget เวลา 08:00 น.) -->
+<!-- Header App Bar (ปรับขนาดและระยะให้พอดี ไม่ล้นจอ) -->
+<header class="bg-slate-800/95 backdrop-blur border-b border-slate-700/60 sticky top-0 z-40 shadow-xl py-2.5">
+  <div class="w-full max-w-[1800px] mx-auto px-3 sm:px-6 flex flex-wrap lg:flex-nowrap items-center justify-between gap-3">
+    
+    <!-- Logo & Title -->
+    <div class="flex items-center space-x-2.5 shrink-0">
+      <img src="https://postimg.cc/n9mk4x6N/3b6e58d3" onerror="this.src='https://i.postimg.cc/brCBjNLY/424dd7460a4a5bc4c2f6af9bf82404f6.png'" alt="ACE LIVE Logo" class="h-9 w-auto object-contain drop-shadow">
+      <div>
+        <h1 class="text-base sm:text-lg font-extrabold text-white leading-tight flex items-center gap-1.5">
+          ACE LIVE Tracking
+          <span class="text-[10px] font-normal px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">v8.5</span>
+        </h1>
+        <p class="text-[11px] text-slate-400 hidden sm:block">ระบบจัดการและติดตามยอด VJ ประจำวัน</p>
+      </div>
+    </div>
+
+    <!-- Clock & Reset Alert Widget -->
+    <div class="flex items-center gap-2 bg-slate-900/90 border border-purple-500/30 px-3 py-1.5 rounded-xl text-xs shadow-inner shrink-0">
+      <div class="flex items-center gap-1.5 text-purple-300 font-mono font-bold border-r border-slate-700/80 pr-2.5">
+        <i class="fa-regular fa-clock text-purple-400 text-xs animate-pulse"></i>
+        <span id="headerLiveClock" class="text-xs">00:00:00 น.</span>
+      </div>
+      <div class="flex items-center gap-1 text-slate-300 text-[11px]">
+        <span class="hidden md:inline">รอบอัปเดต: <strong class="text-amber-300">08:00 น.</strong></span>
+        <span id="headerResetCountdown" class="text-[10px] text-purple-300 font-mono bg-purple-950/60 px-1.5 py-0.5 rounded border border-purple-500/30">(อีก -)</span>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div id="navTabs" class="hidden sm:flex items-center bg-slate-900/80 p-1 rounded-xl border border-slate-700/60 text-xs gap-1 overflow-x-auto shrink-0">
+      <button id="navBtnForm" onclick="switchNavPage('form')" class="px-3 py-1.5 font-semibold rounded-lg bg-purple-600 text-white transition flex items-center gap-1.5 shrink-0">
+        <i class="fa-solid fa-pen-to-square"></i> บันทึกยอด
+      </button>
+      <button id="navBtnSummary" onclick="switchNavPage('summary')" class="px-3 py-1.5 font-semibold rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5 shrink-0">
+        <i class="fa-solid fa-chart-line"></i> Dashboard & Status
+      </button>
+      <a href="https://script.google.com/a/macros/g.isma.ac.th/s/AKfycby0ME1wgUa20sq9iUOjK580spRg5MF4xam6CwNlRXZL0wiJ02r44UPrw1lwqG15kDO5/exec" target="_blank" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition shrink-0">
+        <i class="fa-solid fa-house"></i>
+        <span>ส่ง ข้อมูล USER</span>
+      </a>
+      <button id="navBtnLogs" onclick="switchNavPage('logs')" class="px-3 py-1.5 font-semibold rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5 shrink-0">
+        <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i> Log ระบบ
+      </button>
+    </div>
+
+    <!-- Right Controls: Notification, Sheet Selector & Profile -->
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="relative">
+        <button id="notifBellBtn" onclick="toggleNotifDropdown()" title="แจ้งเตือนการส่งยอด" class="relative p-2 text-slate-300 hover:text-white bg-slate-900 border border-slate-700 rounded-xl transition flex items-center justify-center">
+          <i class="fa-solid fa-bell text-sm"></i>
+          <span id="notifBadge" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border border-slate-800 animate-pulse hidden">0</span>
+        </button>
+        <!-- Dropdown Notifications ... -->
+      </div>
+
+      <div class="flex items-center text-xs bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-700">
+        <i class="fa-regular fa-file-excel text-emerald-400 mr-1.5"></i>
+        <select id="headerSheetSelect" onchange="onHeaderSheetChange()" class="bg-transparent text-emerald-300 font-bold text-xs focus:outline-none cursor-pointer">
+          <option value="" class="bg-slate-800 text-slate-200">กำลังโหลด...</option>
+        </select>
+      </div>
+
+      <div id="userProfile" class="hidden sm:flex items-center gap-1.5 text-xs bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-700">
+        <i class="fa-solid fa-circle-user text-purple-400"></i>
+        <span id="userNameDisplay" class="font-medium text-slate-200 truncate max-w-[80px]"></span>
+        <button onclick="logout()" title="ออกจากระบบ" class="ml-1 text-slate-400 hover:text-rose-400 transition">
+          <i class="fa-solid fa-power-off"></i>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</header>
+
+<!-- Main Container ขยายกว้างรับกับ Header -->
+<main id="mainAppContent" class="w-full max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-10 py-6 grow hidden">
+
+    <!-- PAGE 1: RECORD DATA FORM -->
+    <div id="pageForm">
+      <section class="bg-slate-800 border border-slate-700/70 rounded-2xl p-5 mb-6 shadow-xl relative overflow-hidden">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+              <i class="fa-solid fa-users text-purple-400 mr-1.5"></i> เลือกทีม / ห้อง LIVE
+            </label>
+            <select id="teamSelect" onchange="onTeamOrDateChange()" class="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="">-- กำลังโหลดรายการทีม... --</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+              <i class="fa-regular fa-calendar-days text-pink-400 mr-1.5"></i> ประจำวันที่ (รอบอัปเดต 08.00 น.)
+            </label>
+            <select id="dateSelect" onchange="onTeamOrDateChange()" class="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500"></select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+              <i class="fa-solid fa-user-gear text-emerald-400 mr-1.5"></i> ชื่อ MC ผู้ปฏิบัติหน้าที่
+            </label>
+            <input type="text" id="mcInput" oninput="updateReportText()" placeholder="ระบุชื่อ MC..." class="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+          </div>
+        </div>
+      </section>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <section class="lg:col-span-7 bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-700/70">
+              <div>
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                  <i class="fa-solid fa-list-check text-purple-400"></i> บันทึกยอด VJ ประจำวัน
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">กรอกยอด Diamond หรือเลือกสถานะการเปิด LIVE</p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button onclick="setAllValue('0')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-300 transition border border-slate-600/50"><i class="fa-solid fa-rotate-left mr-1"></i> ตั้งเป็น 0</button>
+                <button onclick="setAllValue('OFF')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-amber-300 transition border border-slate-600/50"><i class="fa-solid fa-bed mr-1"></i> ทุกคน OFF</button>
+              </div>
+            </div>
+
+            <div id="vjLoading" class="py-12 text-center">
+              <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent mb-3"></div>
+              <p class="text-xs text-slate-400">กำลังดึงข้อมูล VJ...</p>
+            </div>
+            <div id="vjContainer" class="space-y-3 max-h-[520px] overflow-y-auto pr-1 hidden"></div>
+            <div id="vjEmpty" class="py-12 text-center hidden">
+              <i class="fa-solid fa-folder-open text-3xl text-slate-600 mb-2"></i>
+              <p class="text-sm text-slate-400">ไม่พบรายชื่อ VJ ในทีมที่เลือก</p>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-4 border-t border-slate-700/70">
+            <button id="saveBtn" onclick="saveData()" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-purple-600/25 active:scale-[0.99] transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+              <span>บันทึกและกดส่งยอด (Save & Submit Status)</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="lg:col-span-5 bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-700/70">
+              <h2 class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-chart-pie text-pink-400"></i> สรุปผลยอด LIVE
+              </h2>
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-slate-700 text-slate-300">Live Preview</span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2.5 mb-4">
+              <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700/60">
+                <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">ยอดรวมทีม</p>
+                <p id="statTotalDiamonds" class="text-sm sm:text-base font-bold text-emerald-400 truncate mt-0.5">0 💎</p>
+              </div>
+              <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700/60">
+                <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">มา LIVE</p>
+                <p id="statLiveCount" class="text-sm sm:text-base font-bold text-purple-300 truncate mt-0.5">0 / 0 คน</p>
+              </div>
+              <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700/60">
+                <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">MVP ประจำวัน</p>
+                <p id="statMVP" class="text-sm sm:text-base font-bold text-amber-300 truncate mt-0.5">-</p>
+              </div>
+            </div>
+
+            <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-700/60 mb-3">
+              <button id="tabTH" onclick="switchTab('TH')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 text-white transition">🇹🇭 รายงานภาษาไทย</button>
+              <button id="tabCN" onclick="switchTab('CN')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition">🇨🇳 每日中文报告</button>
+            </div>
+
+            <textarea id="reportTextarea" readonly rows="12" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-3.5 text-xs font-mono text-slate-200 focus:outline-none resize-none leading-relaxed select-all"></textarea>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 mt-4">
+            <button onclick="copyReport('TH')" class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 font-medium py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition"><i class="fa-regular fa-copy"></i> ก๊อปปี้รายงาน TH</button>
+            <button onclick="copyReport('CN')" class="bg-pink-600/20 hover:bg-pink-600/30 text-pink-300 border border-pink-500/40 font-medium py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition"><i class="fa-regular fa-copy"></i> ก๊อปปี้รายงาน CN</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- PAGE 2: SUMMARY DASHBOARD & SUBMISSION TRACKING -->
+    <div id="pageSummary" class="hidden space-y-6">
+      <section class="bg-slate-800 border border-slate-700/70 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-chart-column text-purple-400"></i> สรุปภาพรวม & ตรวจสอบสถานะการส่งยอด
+          </h2>
+          <p class="text-xs text-slate-400">สถิติรวม Multi-Sheet Export Excel, PDF และสร้างเอกสาร DOC ทั้งดาวน์โหลดตรง & Google Drive</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <select id="summarySheetSelect" onchange="loadSummaryData()" class="bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="">-- เลือกประจำเดือน --</option>
+          </select>
+
+          <button onclick="exportToExcelMultiSheet()" class="px-3 py-2 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-excel text-emerald-400"></i> Excel (.xlsx)
+          </button>
+
+          <button onclick="previewAndDownloadPDF()" class="px-3 py-2 bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-pdf text-rose-400"></i> PDF
+          </button>
+
+          <button onclick="downloadDirectWordDoc()" title="ดาวน์โหลดไฟล์ .doc ลงเครื่อง" class="px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-word text-blue-400"></i> โหลด DOC
+          </button>
+
+          <button onclick="createGoogleDocInDrive()" title="สร้าง Google Docs ลง Drive" class="px-3 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/40 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-brands fa-google-drive text-cyan-400"></i> DOC ใน Drive
+          </button>
+        </div>
+      </section>
+
+      <!-- SUBMISSION TRACKING SECTION -->
+      <section class="bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl space-y-4">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-700/80 pb-3">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-square-check text-emerald-400"></i> ตรวจสอบสถานะการส่งยอดประจำทีม (Submission Status Tracker - รอบ 08:00 น.)
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">ระบบปฏิทินตรวจสอบการส่งยอดประจำวัน (วันที่ 1–31) และบันทึกเวลา MC</p>
+          </div>
+          <button onclick="loadSubmissionStatusData()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold rounded-xl transition flex items-center gap-1">
+            <i class="fa-solid fa-rotate text-purple-400"></i> รีเฟรชสถานะ
+          </button>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-700/80 max-h-72">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr id="submissionHeaderRow" class="bg-slate-900 text-slate-300 font-semibold border-b border-slate-700 sticky top-0 z-10">
+                <th class="py-2.5 px-3">ทีม / ห้อง LIVE</th>
+              </tr>
+            </thead>
+            <tbody id="submissionTbody" class="divide-y divide-slate-700/60 bg-slate-800/80"></tbody>
+          </table>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-700/60">
+          <h4 class="text-xs font-bold text-purple-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left"></i> ประวัติการกดส่งยอดล่าสุดโดย MC (Submission Logs)
+          </h4>
+          <div class="overflow-x-auto rounded-xl border border-slate-700/80 max-h-48">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-900 text-slate-400 font-semibold border-b border-slate-700">
+                  <th class="py-2 px-3">วัน/เวลา บันทึก</th>
+                  <th class="py-2 px-3">ประจำเดือน</th>
+                  <th class="py-2 px-3 text-center">วันที่</th>
+                  <th class="py-2 px-3">ทีม</th>
+                  <th class="py-2 px-3">MC ผู้ส่งยอด</th>
+                  <th class="py-2 px-3 text-right">ยอด Diamond รวม</th>
+                </tr>
+              </thead>
+              <tbody id="submissionLogsTbody" class="divide-y divide-slate-700/50"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Single Month Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-4 shadow-xl flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">💎 ยอดรวมประจำเดือน</p>
+            <p id="sumGrandTotal" class="text-xl font-bold text-emerald-400 mt-1">0 💎</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-gem"></i>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-4 shadow-xl flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">🏆 ทีมยอดเยี่ยมประจำเดือน</p>
+            <p id="sumTopTeam" class="text-sm font-bold text-purple-300 mt-1 truncate max-w-[150px]">-</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-trophy"></i>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-4 shadow-xl flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">👑 VJ MVP ประจำเดือน</p>
+            <p id="sumTopVJ" class="text-sm font-bold text-amber-300 mt-1 truncate max-w-[150px]">-</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-crown"></i>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-4 shadow-xl flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">📅 ยอดเฉลี่ยต่อวัน</p>
+            <p id="sumDailyAvg" class="text-xl font-bold text-pink-400 mt-1">0 💎</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-pink-500/10 text-pink-400 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-calculator"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart Section -->
+      <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl">
+        <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-chart-line text-purple-400"></i> กราฟแนวโน้ม Diamond (<span id="chartTitleView">รายวัน</span>)
+        </h3>
+        <div class="relative h-64 w-full">
+          <canvas id="diamondsChart"></canvas>
+        </div>
+      </div>
+
+      <div id="summaryLoading" class="py-16 text-center bg-slate-800 rounded-2xl border border-slate-700/70">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent mb-3"></div>
+        <p class="text-xs text-slate-400">กำลังประมวลผลข้อมูลสรุป...</p>
+      </div>
+
+      <div id="summaryContent" class="hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div class="lg:col-span-7 bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl">
+            <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+              <i class="fa-solid fa-users-rectangle text-purple-400"></i> สรุปยอด Diamond แยกทีม & ยอดรวมทั้งหมด (Grand Total)
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-700/80 text-slate-400 font-semibold uppercase tracking-wider">
+                    <th class="py-2.5 px-3">ลำดับ</th>
+                    <th class="py-2.5 px-3">ทีม / ห้อง LIVE</th>
+                    <th class="py-2.5 px-3 text-center">จำนวน VJ</th>
+                    <th class="py-2.5 px-3 text-right">ยอดรวม (💎)</th>
+                    <th class="py-2.5 px-3 text-right">เฉลี่ย / คน</th>
+                    <th class="py-2.5 px-3 text-center">สัดส่วน (%)</th>
+                  </tr>
+                </thead>
+                <tbody id="teamsSummaryTableBody" class="divide-y divide-slate-700/50"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5 bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl">
+            <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+              <i class="fa-solid fa-ranking-star text-amber-400"></i> อันดับ Top 10 VJ ประจำเดือน
+            </h3>
+            <div class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1" id="topVJsContainer"></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-user-tag text-purple-400"></i> สรุปรายละเอียด VJ แยกเป็นรายบุคคล
+            </h3>
+            <select id="vjTeamFilterSelect" onchange="filterVJDetailsTable()" class="bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none">
+              <option value="ALL">-- แสดง VJ ทั้งหมดทุกทีม --</option>
+            </select>
+          </div>
+          <div class="overflow-x-auto max-h-96">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-slate-700/80 text-slate-400 font-semibold uppercase tracking-wider sticky top-0 bg-slate-800 z-10">
+                  <th class="py-2.5 px-3">ลำดับ</th>
+                  <th class="py-2.5 px-3">โปรไฟล์ VJ</th>
+                  <th class="py-2.5 px-3">TikTok ID</th>
+                  <th class="py-2.5 px-3">สังกัดทีม</th>
+                  <th class="py-2.5 px-3 text-center">จำนวนวันที่ LIVE</th>
+                  <th class="py-2.5 px-3 text-right">เป้าหมาย KPI</th>
+                  <th class="py-2.5 px-3 text-right">ยอดรวม Diamond</th>
+                  <th class="py-2.5 px-3 text-center">% KPI</th>
+                </tr>
+              </thead>
+              <tbody id="vjDetailsTableBody" class="divide-y divide-slate-700/50"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE 3: KPI MANAGEMENT PAGE -->
+    <div id="pageKPI" class="hidden space-y-6">
+      <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0 border border-amber-500/30">
+            <i class="fa-solid fa-bullseye"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-white leading-tight">จัดการเป้าหมาย & ติดตามความคืบหน้า KPI</h2>
+            <p class="text-xs text-slate-400 mt-0.5">ระบบกำหนด KPI แบบกรองรายทีม กระจายเป้าหมายอัตโนมัติ สรุปกราฟ และ Export</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          <select id="kpiMonthSelect" onchange="loadKPIData()" class="bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="">-- ประจำเดือน --</option>
+          </select>
+          <select id="kpiTeamFilterSelect" onchange="loadKPIData()" class="bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="ALL">-- แสดง VJ ทุกทีม --</option>
+          </select>
+          <button onclick="exportKPIToExcel()" class="px-3 py-2 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-excel text-emerald-400"></i> Export KPI Excel
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-5 bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-700/70">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-amber-400"></i> กำหนดเป้าหมาย KPI
+              </h3>
+              <span class="text-[11px] font-medium text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">3 รูปแบบการกรอก</span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700/70 mb-4 text-xs">
+              <button type="button" id="kpiModeBtnAuto" onclick="switchKPIMode('auto')" class="py-1.5 px-2 rounded-lg font-semibold bg-amber-600 text-white transition truncate">⚡ กระจายอัตโนมัติ</button>
+              <button type="button" id="kpiModeBtnManual" onclick="switchKPIMode('manual')" class="py-1.5 px-2 rounded-lg font-semibold text-slate-400 hover:text-white transition truncate">✍️ กระจายรายคน</button>
+              <button type="button" id="kpiModeBtnSingle" onclick="switchKPIMode('single')" class="py-1.5 px-2 rounded-lg font-semibold text-slate-400 hover:text-white transition truncate">👤 รายบุคคล</button>
+            </div>
+
+            <div id="kpiModeAutoContent" class="space-y-3.5">
+              <div class="p-3 bg-slate-900/60 border border-slate-700/50 rounded-xl text-xs text-slate-300 leading-relaxed">
+                <p class="font-semibold text-amber-300 mb-1"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> โหมดกระจายอัตโนมัติ:</p>
+                ระบุเป้าหมาย Diamond รวมของทีม ระบบจะเฉลี่ยเป้าหมายให้ VJ ในทีมคนละเท่าๆ กันให้อัตโนมัติ
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">เลือกทีมที่ต้องการกำหนด KPI</label>
+                <select id="kpiAutoTeamSelect" onchange="previewAutoDistribute()" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  <option value="">-- เลือกทีม --</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">เป้าหมาย Diamond รวมทั้งทีม</label>
+                <input type="number" id="kpiAutoTeamTarget" oninput="previewAutoDistribute()" placeholder="เช่น 500000" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium text-emerald-400">
+              </div>
+
+              <div id="kpiAutoPreviewBox" class="p-3 bg-purple-900/20 border border-purple-500/30 rounded-xl hidden">
+                <p class="text-xs text-purple-200">
+                  <i class="fa-solid fa-calculator text-purple-400 mr-1"></i>
+                  พบ VJ ในทีม <span id="kpiAutoVjCount" class="font-bold text-white">0</span> คน
+                  ➔ ตกคนละประมาณ <span id="kpiAutoPerVjTarget" class="font-bold text-emerald-300 text-sm">0</span> 💎
+                </p>
+              </div>
+
+              <button type="button" onclick="submitAutoKPI()" class="w-full bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-semibold py-2.5 rounded-xl text-xs shadow-lg shadow-amber-600/20 active:scale-[0.99] transition flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-bolt"></i> กระจาย KPI และบันทึกทั้งทีม
+              </button>
+            </div>
+
+            <div id="kpiModeManualContent" class="space-y-3.5 hidden">
+              <div class="p-3 bg-slate-900/60 border border-slate-700/50 rounded-xl text-xs text-slate-300 leading-relaxed">
+                <p class="font-semibold text-purple-300 mb-1"><i class="fa-solid fa-pen-ruler mr-1"></i> โหมดกระจายรายคนในทีม:</p>
+                เลือกทีมแล้วกรอกตัวเลข KPI ของ VJ แต่ละคนทีละคน แล้วกดบันทึกชุดข้อมูลพร้อมกัน
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">เลือกทีมที่ต้องการกรอก</label>
+                <select id="kpiManualTeamSelect" onchange="renderManualTeamVJInputs()" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  <option value="">-- เลือกทีม --</option>
+                </select>
+              </div>
+
+              <div id="kpiManualVJListContainer" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <p class="text-xs text-slate-500 text-center py-4">กรุณาเลือกทีมเพื่อเริ่มกรอกเป้าหมาย VJ</p>
+              </div>
+
+              <button type="button" id="btnSaveManualTeamKPI" onclick="submitManualTeamKPI()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 rounded-xl text-xs shadow-lg shadow-purple-600/20 active:scale-[0.99] transition flex items-center justify-center gap-1.5 hidden">
+                <i class="fa-solid fa-floppy-disk"></i> บันทึก KPI ทุกคนในทีมนี้
+              </button>
+            </div>
+
+            <div id="kpiModeSingleContent" class="space-y-3.5 hidden">
+              <form id="kpiForm" onsubmit="handleSaveKPI(event)" class="space-y-3.5">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 mb-1">ชื่อ VJ</label>
+                  <input type="text" id="kpiVJNameInput" placeholder="พิมพ์ชื่อ VJ..." required class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 mb-1">เป้าหมาย Diamond</label>
+                  <input type="number" id="kpiTargetValue" placeholder="เช่น 100000" required class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+
+                <button type="submit" id="saveKpiBtn" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 rounded-xl text-xs shadow-lg shadow-amber-600/20 active:scale-[0.99] transition flex items-center justify-center gap-1.5">
+                  <i class="fa-solid fa-plus"></i> บันทึกเป้าหมาย KPI รายบุคคล
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7 bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-700/70">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-chart-column text-emerald-400"></i> กราฟสรุปผลเป้าหมาย vs ทำได้จริง (Target vs Actual)
+              </h3>
+              <span class="text-xs font-mono text-slate-400">KPI Visualizer</span>
+            </div>
+
+            <div class="relative h-64 w-full">
+              <canvas id="kpiSummaryChart"></canvas>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 mt-4 text-center text-xs border-t border-slate-700/60 pt-3">
+            <div class="bg-slate-900/60 p-2 rounded-lg">
+              <p class="text-slate-400 text-[10px]">เป้าหมายรวม</p>
+              <p id="kpiStatTargetTotal" class="font-bold text-amber-400 text-sm mt-0.5">0 💎</p>
+            </div>
+            <div class="bg-slate-900/60 p-2 rounded-lg">
+              <p class="text-slate-400 text-[10px]">ทำได้จริงรวม</p>
+              <p id="kpiStatActualTotal" class="font-bold text-emerald-400 text-sm mt-0.5">0 💎</p>
+            </div>
+            <div class="bg-slate-900/60 p-2 rounded-lg">
+              <p class="text-slate-400 text-[10px]">ความสำเร็จรวม</p>
+              <p id="kpiStatAvgProgress" class="font-bold text-purple-300 text-sm mt-0.5">0%</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-purple-400"></i> ตารางติดตาม KPI รายบุคคล (KPI Progress Details)
+          </h3>
+          <button onclick="loadKPIData()" class="text-xs text-purple-300 hover:text-purple-200 transition">
+            <i class="fa-solid fa-rotate mr-1"></i> รีเฟรชข้อมูล
+          </button>
+        </div>
+        <div class="overflow-x-auto max-h-[480px]">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-700/80 text-slate-400 uppercase tracking-wider font-semibold sticky top-0 bg-slate-800 z-10">
+                <th class="py-3 px-3">โปรไฟล์ & ชื่อ VJ</th>
+                <th class="py-3 px-3">สังกัดทีม</th>
+                <th class="py-3 px-3">TikTok ID</th>
+                <th class="py-3 px-3 text-right">เป้าหมาย (Target)</th>
+                <th class="py-3 px-3 text-right">ทำได้จริง (Actual)</th>
+                <th class="py-3 px-3 text-center" style="width: 180px;">ความคืบหน้า (%)</th>
+                <th class="py-3 px-3 text-center">ผู้บันทึกล่าสุด</th>
+                <th class="py-3 px-3 text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="kpiTableBody" class="divide-y divide-slate-700/50"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE 4: SYSTEM LOGS AUDIT TRAIL -->
+    <div id="pageLogs" class="hidden space-y-6">
+      <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl shrink-0 border border-cyan-500/30">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-white leading-tight">ประวัติการใช้งานและบันทึกกิจกรรม (System Data Logs)</h2>
+            <p class="text-xs text-slate-400 mt-0.5">ตรวจสอบย้อนหลังการเข้าสู่ระบบ บันทึกยอด VJ การตั้งค่า KPI และแก้ไขตารางงาน</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2.5 w-full md:w-auto">
+          <select id="logActionFilter" onchange="loadSystemLogs()" class="bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            <option value="ALL">-- ประเภทกิจกรรมทั้งหมด --</option>
+            <option value="LOGIN">LOGIN (เข้าสู่ระบบ)</option>
+            <option value="SAVE_DAILY_DIAMOND">SAVE_DAILY_DIAMOND (บันทึกยอด)</option>
+            <option value="UPDATE_KPI">UPDATE_KPI (จัดการ KPI)</option>
+            <option value="SAVE_MC_SCHEDULE">SAVE_MC_SCHEDULE (ตาราง MC)</option>
+            <option value="CREATE_DOC_REPORT">CREATE_DOC_REPORT (สร้างรายงาน DOC)</option>
+          </select>
+
+          <button onclick="loadSystemLogs()" class="px-3 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/40 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-rotate text-cyan-400"></i> รีเฟรช Log
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-5 shadow-xl">
+        <div class="overflow-x-auto max-h-[550px]">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-700/80 text-slate-400 uppercase tracking-wider font-semibold sticky top-0 bg-slate-800 z-10">
+                <th class="py-3 px-3">วัน-เวลา (Timestamp)</th>
+                <th class="py-3 px-3">ผู้ดำเนินการ (User)</th>
+                <th class="py-3 px-3">ประเภทกิจกรรม (Action)</th>
+                <th class="py-3 px-3">ชีตเป้าหมาย</th>
+                <th class="py-3 px-3">รายละเอียด (Details)</th>
+                <th class="py-3 px-3 text-center">สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="systemLogsTbody" class="divide-y divide-slate-700/50"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- PDF PREVIEW & EXPORT MODAL -->
+  <div id="pdfPreviewModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-2 sm:p-6 overflow-y-auto hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] no-print">
+      <div class="p-4 bg-slate-800 border-b border-slate-700 flex items-center justify-between gap-3 shrink-0 no-print">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-file-pdf"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">ตัวอย่างเอกสารรายงาน PDF (PDF Report Preview)</h3>
+            <p class="text-[11px] text-slate-400">โครงสร้างจัดแต่งตามแบบฟอร์มเอกสารสรุปผลประจำเดือน (Executive Modern Style)</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="downloadPDFFile()" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-xl text-xs transition flex items-center gap-1.5 shadow-lg shadow-rose-600/30">
+            <i class="fa-solid fa-download"></i> ดาวน์โหลดไฟล์ PDF
+          </button>
+          <button onclick="printPDFReport()" class="px-3.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold rounded-xl text-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-print"></i> พิมพ์รายงาน
+          </button>
+          <button onclick="closePDFModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+            <i class="fa-solid fa-xmark text-base"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="p-4 sm:p-8 overflow-y-auto grow bg-slate-900 flex justify-center">
+        <div id="pdfReportContent" class="bg-white text-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-4xl text-xs font-sans print:p-0 print:shadow-none print:max-w-none" style="font-family: 'Kanit', sans-serif;">
+          <div style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: white; padding: 14px 20px; border-radius: 10px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3.5px solid #a855f7; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <img src="https://postimg.cc/n9mk4x6N/3b6e58d3" onerror="this.src='https://i.postimg.cc/brCBjNLY/424dd7460a4a5bc4c2f6af9bf82404f6.png'" style="height: 36px; max-width: 120px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));" alt="ACE LIVE Logo">
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <h1 style="font-size: 16px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; margin: 0;">ACE LIVE TRACKING</h1>
+                  <span style="background: rgba(168, 85, 247, 0.25); color: #f3e8ff; border: 1px solid rgba(192, 132, 252, 0.4); padding: 1px 6px; border-radius: 9999px; font-size: 8.5px; font-weight: 700;">OFFICIAL REPORT</span>
+                </div>
+                <p id="pdfReportSubTitle" style="font-size: 10.5px; color: #e9d5ff; margin-top: 2px; font-weight: 500;">รายงานสรุปผลการปฏิบัติงาน และยอด Diamond ประจำเดือน ...</p>
+              </div>
+            </div>
+
+            <div style="text-align: right; font-size: 9.5px; color: #cbd5e1; border-left: 1.5px solid rgba(168, 85, 247, 0.3); padding-left: 14px;">
+              <p style="margin: 1px 0;"><span style="color: #94a3b8;">ชีตข้อมูล:</span> <strong id="pdfSheetName" style="color: #ffffff;">-</strong></p>
+              <p style="margin: 1px 0;"><span style="color: #94a3b8;">วันที่ออกเอกสาร:</span> <strong id="pdfPrintDate" style="color: #ffffff;">-</strong></p>
+              <p style="margin: 1px 0;"><span style="color: #94a3b8;">ผู้ออกรายงาน:</span> <strong id="pdfPrintedBy" style="color: #ffffff;">-</strong></p>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; page-break-inside: avoid;">
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: 3px solid #10b981; padding: 10px; border-radius: 8px; text-align: center;">
+              <p style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0 0 3px 0;">💎 ยอด Diamond รวมทั้งหมด</p>
+              <p id="pdfStatGrandTotal" style="font-size: 15px; font-weight: 900; color: #059669; margin: 0;">0 💎</p>
+            </div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: 3px solid #a855f7; padding: 10px; border-radius: 8px; text-align: center;">
+              <p style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0 0 3px 0;">🏆 ทีมอันดับ 1</p>
+              <p id="pdfStatTopTeam" style="font-size: 11.5px; font-weight: 800; color: #7e22ce; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-</p>
+            </div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: 3px solid #f59e0b; padding: 10px; border-radius: 8px; text-align: center;">
+              <p style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0 0 3px 0;">👑 VJ MVP ประจำเดือน</p>
+              <p id="pdfStatTopVJ" style="font-size: 11.5px; font-weight: 800; color: #d97706; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-</p>
+            </div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-top: 3px solid #3b82f6; padding: 10px; border-radius: 8px; text-align: center;">
+              <p style="font-size: 9.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0 0 3px 0;">📅 ยอดเฉลี่ย / วัน</p>
+              <p id="pdfStatDailyAvg" style="font-size: 15px; font-weight: 900; color: #2563eb; margin: 0;">0 💎</p>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px; page-break-inside: avoid;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px; border-bottom: 2px solid #6b21a8; padding-bottom: 4px;">
+              <i class="fa-solid fa-users" style="color: #6b21a8; font-size: 12px;"></i>
+              <h2 style="font-size: 11px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.3px;">1. สรุปผลการดำเนินงานแยกตามทีม (Team Performance Summary)</h2>
+            </div>
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 10.5px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <thead>
+                <tr style="background: #0f172a; color: #ffffff; font-weight: 700;">
+                  <th style="padding: 7px 10px; text-align: center; width: 40px;">#</th>
+                  <th style="padding: 7px 10px; text-align: left;">ทีม / ห้อง LIVE</th>
+                  <th style="padding: 7px 10px; text-align: center; width: 85px;">จำนวน VJ</th>
+                  <th style="padding: 7px 10px; text-align: right; width: 130px;">ยอดรวม Diamond (💎)</th>
+                  <th style="padding: 7px 10px; text-align: right; width: 110px;">เฉลี่ยต่อคน (💎)</th>
+                  <th style="padding: 7px 10px; text-align: center; width: 85px;">สัดส่วน (%)</th>
+                </tr>
+              </thead>
+              <tbody id="pdfTeamTableBody"></tbody>
+            </table>
+          </div>
+
+          <div style="margin-bottom: 20px; page-break-inside: avoid;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px; border-bottom: 2px solid #d97706; padding-bottom: 4px;">
+              <i class="fa-solid fa-crown" style="color: #d97706; font-size: 12px;"></i>
+              <h2 style="font-size: 11px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.3px;">2. อันดับ Top 10 VJ ประจำเดือน (Top 10 VJ Leaderboard)</h2>
+            </div>
+            <div id="pdfTopVJGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;"></div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px; border-bottom: 2px solid #334155; padding-bottom: 4px;">
+              <i class="fa-solid fa-list-check" style="color: #334155; font-size: 12px;"></i>
+              <h2 style="font-size: 11px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.3px;">3. รายละเอียดผลงาน VJ รายบุคคล (Detailed VJ Performance)</h2>
+            </div>
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 10px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <thead>
+                <tr style="background: #1e293b; color: #ffffff; font-weight: 700;">
+                  <th style="padding: 7px 8px; text-align: center; width: 35px;">#</th>
+                  <th style="padding: 7px 8px; text-align: left;">ชื่อ VJ</th>
+                  <th style="padding: 7px 8px; text-align: left;">TikTok ID</th>
+                  <th style="padding: 7px 8px; text-align: left;">สังกัดทีม</th>
+                  <th style="padding: 7px 6px; text-align: center; width: 60px;">วัน LIVE</th>
+                  <th style="padding: 7px 8px; text-align: right; width: 95px;">เป้า KPI</th>
+                  <th style="padding: 7px 8px; text-align: right; width: 105px;">ยอด Diamond</th>
+                  <th style="padding: 7px 6px; text-align: center; width: 70px;">% สำเร็จ</th>
+                </tr>
+              </thead>
+              <tbody id="pdfVJDetailsTableBody"></tbody>
+            </table>
+          </div>
+
+          <div style="margin-top: 28px; padding-top: 16px; border-top: 1px solid #cbd5e1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center; font-size: 10px; page-break-inside: avoid;">
+            <div style="padding: 10px 6px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+              <p style="font-weight: 700; color: #0f172a; margin: 0 0 28px 0;">ผู้รายงานข้อมูล (Prepared)</p>
+              <div style="border-bottom: 1px dashed #94a3b8; width: 85%; margin: 0 auto 5px auto;"></div>
+              <p style="font-size: 8.5px; color: #64748b; margin: 0;">(...................................................)</p>
+              <p style="font-size: 8px; color: #94a3b8; margin-top: 3px;">วันที่ ......./......./.......</p>
+            </div>
+
+            <div style="padding: 10px 6px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+              <p style="font-weight: 700; color: #0f172a; margin: 0 0 28px 0;">ผู้ตรวจสอบ (Verified)</p>
+              <div style="border-bottom: 1px dashed #94a3b8; width: 85%; margin: 0 auto 5px auto;"></div>
+              <p style="font-size: 8.5px; color: #64748b; margin: 0;">(...................................................)</p>
+              <p style="font-size: 8px; color: #94a3b8; margin-top: 3px;">วันที่ ......./......./.......</p>
+            </div>
+
+            <div style="padding: 10px 6px; border: 1px solid #d8b4fe; border-radius: 8px; background: #faf5ff;">
+              <p style="font-weight: 700; color: #6b21a8; margin: 0 0 28px 0;">ผู้รับทราบ (Acknowledged)</p>
+              <div style="border-bottom: 1px dashed #a855f7; width: 85%; margin: 0 auto 5px auto;"></div>
+              <p style="font-size: 8.5px; color: #6b21a8; margin: 0;">(...................................................)</p>
+              <p style="font-size: 8px; color: #94a3b8; margin-top: 3px;">วันที่ ......./......./.......</p>
+            </div>
+
+            <div style="padding: 10px 6px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+              <p style="font-weight: 700; color: #0f172a; margin: 0 0 28px 0;">ผู้อนุมัติ (Approved)</p>
+              <div style="border-bottom: 1px dashed #94a3b8; width: 85%; margin: 0 auto 5px auto;"></div>
+              <p style="font-size: 8.5px; color: #64748b; margin: 0;">(...................................................)</p>
+              <p style="font-size: 8px; color: #94a3b8; margin-top: 3px;">วันที่ ......./......./.......</p>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px; padding-top: 8px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #94a3b8;">
+            <span>ACE LIVE Tracking System &copy; Official Management Report</span>
+            <span>เอกสารสำคัญใช้ภายในองค์กรเท่านั้น</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold text-white bg-slate-800 border border-slate-700">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+    <span id="toastMsg">แจ้งเตือน</span>
+  </div>
+
+  <footer class="bg-slate-900 border-t border-slate-800 py-3 text-center text-xs text-slate-500">
+    ACE LIVE Tracking System &copy; 2026 | Powered by Ameen
+  </footer>
+
+  <!-- PENDING SUBMISSION ALERT MODAL (POPUP แจ้งเตือนทีมยังไม่ส่งยอด) -->
+  <div id="pendingAlertModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl p-6 relative overflow-hidden animate-fade-in">
+      <div class="absolute -top-12 -right-12 w-32 h-32 bg-rose-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
+      <div class="flex items-start gap-3.5 mb-4">
+        <div class="w-11 h-11 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center text-xl shrink-0">
+          <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            แจ้งเตือนสถานะการส่งยอดประจำวัน (รอบ 08:00 น.)
+            <span id="alertModalDateBadge" class="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">วันที่ -</span>
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">พบทีมที่ยังไม่ได้กรอกยอด/ส่งรายงานประจำวันนี้</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 mb-5">
+        <div class="p-3 bg-rose-950/40 border border-rose-500/30 rounded-xl">
+          <p class="text-xs font-bold text-rose-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-xmark text-rose-400"></i> ทีมที่ยังไม่ได้ส่งยอด (<span id="alertPendingCount">0</span> ทีม):
+          </p>
+          <div id="alertPendingTeamsList" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="p-3 bg-emerald-950/30 border border-emerald-500/20 rounded-xl">
+          <p class="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-check text-emerald-400"></i> ทีมที่ส่งยอดแล้ว (<span id="alertSubmittedCount">0</span> ทีม):
+          </p>
+          <div id="alertSubmittedTeamsList" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <button onclick="goToRecordingPage()" class="flex-1 py-2.5 px-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20">
+          <i class="fa-solid fa-pen-to-square"></i> ไปหน้าบันทึกยอดทันที
+        </button>
+        <button onclick="closePendingAlertModal()" class="py-2.5 px-4 bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold rounded-xl text-xs transition">
+          รับทราบ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COPY REPORT POPUP MODAL -->
+  <div id="copyReportModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl p-6 relative overflow-hidden animate-fade-in">
+      <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
+      <div class="flex items-center gap-3.5 mb-4 border-b border-slate-700/80 pb-3">
+        <div class="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center text-xl shrink-0">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-white">บันทึกข้อมูลลงระบบเรียบร้อยแล้ว!</h3>
+          <p class="text-xs text-slate-400 mt-0.5">กดปุ่มด้านล่างเพื่อคัดลอกข้อความสรุปยอด LIVE ไปส่งกลุ่มได้เลยครับ</p>
+        </div>
+      </div>
+
+      <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-700/60 mb-3">
+        <button id="modalTabTH" onclick="switchModalReportTab('TH')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 text-white transition">🇹🇭 รายงานภาษาไทย</button>
+        <button id="modalTabCN" onclick="switchModalReportTab('CN')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition">🇨🇳 每日中文报告</button>
+      </div>
+
+      <textarea id="modalReportTextarea" readonly rows="9" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-3.5 text-xs font-mono text-slate-200 focus:outline-none resize-none leading-relaxed select-all mb-4"></textarea>
+
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <button onclick="copyReportFromModal('TH')" class="py-2.5 px-3 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-purple-600/20">
+          <i class="fa-regular fa-copy"></i> คัดลอกรายงาน TH (🇹🇭)
+        </button>
+        <button onclick="copyReportFromModal('CN')" class="py-2.5 px-3 bg-pink-600 hover:bg-pink-500 text-white font-semibold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-pink-600/20">
+          <i class="fa-regular fa-copy"></i> คัดลอกรายงาน CN (🇨🇳)
+        </button>
+      </div>
+
+      <button onclick="closeCopyReportModal()" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold rounded-xl text-xs transition">
+        เสร็จสิ้น / ปิดหน้าต่าง
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let currentVJs = [];
+    let activeTab = 'TH';
+    let chartInstance = null;
+    let kpiChartInstance = null;
+    let currentSummaryData = null;
+    let currentKPIDataList = [];
+    let loggedUserInfo = null;
+    let availableTeams = [];
+    let multiMonthDataset = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      checkLoginSession();
+      startLiveClock();
+    });
+
+    /**
+     * ระบบนาฬิกาเวลาจริง Live Clock และคำนวณเวลานับถอยหลังรอบอัปเดต 08:00 น.
+     */
+    function startLiveClock() {
+      updateClockAndCountdown();
+      setInterval(updateClockAndCountdown, 1000);
+    }
+
+    function updateClockAndCountdown() {
+      const now = new Date();
+      const hrs = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      const secs = String(now.getSeconds()).padStart(2, '0');
+      
+      const clockEl = document.getElementById('headerLiveClock');
+      if (clockEl) clockEl.textContent = `${hrs}:${mins}:${secs} น.`;
+
+      // คำนวณเวลาคงเหลือก่อนถึงรอบอัปเดตถัดไป 08:00 น.
+      let target = new Date();
+      target.setHours(8, 0, 0, 0);
+      if (now >= target) {
+        target.setDate(target.getDate() + 1);
+      }
+      
+      const diffMs = target - now;
+      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      const diffSecs = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+      const countdownEl = document.getElementById('headerResetCountdown');
+      if (countdownEl) {
+        countdownEl.textContent = `(อีก ${String(diffHrs).padStart(2, '0')}:${String(diffMins).padStart(2, '0')}:${String(diffSecs).padStart(2, '0')})`;
+      }
+
+      // เมื่อถึงเวลา 08:00:00 น. ให้ทำการแจ้งเตือนและรีเฟรชรอบวันให้อัตโนมัติ
+      if (now.getHours() === 8 && now.getMinutes() === 0 && now.getSeconds() === 0) {
+        showToast('ระบบปรับเข้าสู่รอบวันใหม่ (08.00 น.) เรียบร้อยแล้ว', 'success');
+        checkTodayPendingSubmissions();
+        initDateDropdown();
+      }
+    }
+
+    function checkLoginSession() {
+      const loggedUser = sessionStorage.getItem('ace_logged_user');
+      if (loggedUser) {
+        try {
+          loggedUserInfo = JSON.parse(loggedUser);
+          showMainApp(loggedUserInfo);
+        } catch (e) {
+          showLoginScreen();
+        }
+      } else {
+        showLoginScreen();
+      }
+    }
+
+    function showLoginScreen() {
+      document.getElementById('loginOverlay').classList.remove('hidden');
+      document.getElementById('mainAppContent').classList.add('hidden');
+      document.getElementById('navTabs').classList.add('hidden');
+      document.getElementById('userProfile').classList.add('hidden');
+    }
+
+    function showMainApp(user) {
+      document.getElementById('loginOverlay').classList.add('hidden');
+      document.getElementById('mainAppContent').classList.remove('hidden');
+      document.getElementById('navTabs').classList.remove('hidden');
+      
+      const userProfile = document.getElementById('userProfile');
+      userProfile.classList.remove('hidden');
+      document.getElementById('userNameDisplay').textContent = user.name || user.username;
+
+      if (user.name && !document.getElementById('mcInput').value) {
+        document.getElementById('mcInput').value = user.name;
+      }
+
+      initDateDropdown();
+      loadMCNameFromStorage();
+      loadInitialData();
+      checkTodayPendingSubmissions();
+    }
+
+    function switchNavPage(page) {
+      const btns = {
+        form: document.getElementById('navBtnForm'),
+        summary: document.getElementById('navBtnSummary'),
+        kpi: document.getElementById('navBtnKPI'),
+        logs: document.getElementById('navBtnLogs')
+      };
+      
+      const pages = {
+        form: document.getElementById('pageForm'),
+        summary: document.getElementById('pageSummary'),
+        kpi: document.getElementById('pageKPI'),
+        logs: document.getElementById('pageLogs')
+      };
+
+      Object.keys(btns).forEach(key => {
+        if (btns[key]) btns[key].className = 'px-3 py-2 font-semibold rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5 shrink-0';
+        if (pages[key]) pages[key].classList.add('hidden');
+      });
+
+      if (btns[page]) btns[page].className = 'px-3 py-2 font-semibold rounded-lg bg-purple-600 text-white transition flex items-center gap-1.5 shrink-0';
+      if (pages[page]) pages[page].classList.remove('hidden');
+
+      if (page === 'summary') {
+        loadSummaryData();
+        loadSubmissionStatusData();
+      } else if (page === 'kpi') {
+        initKPIPage();
+      } else if (page === 'logs') {
+        loadSystemLogs();
+      }
+    }
+
+    function loadSystemLogs() {
+      const filter = document.getElementById('logActionFilter') ? document.getElementById('logActionFilter').value : 'ALL';
+      const tbody = document.getElementById('systemLogsTbody');
+      tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>กำลังดึงข้อมูล Logs...</td></tr>`;
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          tbody.innerHTML = '';
+          if (res.success && res.logs && res.logs.length > 0) {
+            res.logs.forEach(l => {
+              let badgeColor = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
+              if (l.action === 'LOGIN') badgeColor = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+              else if (l.action === 'SAVE_DAILY_DIAMOND') badgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+              else if (l.action === 'UPDATE_KPI') badgeColor = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+
+              const tr = document.createElement('tr');
+              tr.className = 'hover:bg-slate-700/30 transition';
+              tr.innerHTML = `
+                <td class="py-2.5 px-3 font-mono text-slate-300">${l.timestamp}</td>
+                <td class="py-2.5 px-3 font-semibold text-white">${l.user}</td>
+                <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor}">${l.action}</span></td>
+                <td class="py-2.5 px-3 text-purple-300">${l.sheetTarget}</td>
+                <td class="py-2.5 px-3 text-slate-300">${l.details}</td>
+                <td class="py-2.5 px-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${l.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">${l.status}</span></td>
+              `;
+              tbody.appendChild(tr);
+            });
+          } else {
+            tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">ยังไม่มีประวัติกิจกรรมในระบบ</td></tr>`;
+          }
+        })
+        .getSystemLogs(filter, 100);
+    }
+
+    function handleLogin(event) {
+      event.preventDefault();
+      const userVal = document.getElementById('loginUsername').value.trim();
+      const passVal = document.getElementById('loginPassword').value.trim();
+      const errorDiv = document.getElementById('loginError');
+      const loginBtn = document.getElementById('loginBtn');
+
+      if (!userVal || !passVal) {
+        errorDiv.textContent = 'กรุณากรอกข้อมูลให้ครบถ้วน';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+
+      errorDiv.classList.add('hidden');
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> <span>กำลังตรวจสอบ...</span>`;
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          loginBtn.disabled = false;
+          loginBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> <span>เข้าสู่ระบบ (Login)</span>`;
+
+          if (res.success) {
+            loggedUserInfo = res.user;
+            sessionStorage.setItem('ace_logged_user', JSON.stringify(res.user));
+            showMainApp(res.user);
+            showToast('เข้าสู่ระบบสำเร็จแล้ว', 'success');
+          } else {
+            errorDiv.textContent = res.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+            errorDiv.classList.remove('hidden');
+          }
+        })
+        .withFailureHandler(function(err) {
+          loginBtn.disabled = false;
+          loginBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> <span>เข้าสู่ระบบ (Login)</span>`;
+          errorDiv.textContent = 'ไม่สามารถเชื่อมต่อ Server ได้: ' + err;
+          errorDiv.classList.remove('hidden');
+        })
+        .loginUser(userVal, passVal);
+    }
+
+    function logout() {
+      sessionStorage.removeItem('ace_logged_user');
+      showLoginScreen();
+      showToast('ออกจากระบบเรียบร้อยแล้ว', 'success');
+    }
+
+    /**
+     * กำหนดวันที่เริ่มต้นใน Dropdown โดยอ้างอิงเวลาตัดรอบ 08:00 น.
+     * หากเวลาปัจจุบันยังไม่ถึง 08:00 น. ระบบจะเลือกวันก่อนหน้าให้อัตโนมัติ
+     */
+    function initDateDropdown() {
+      const dateSelect = document.getElementById('dateSelect');
+      const now = new Date();
+      if (now.getHours() < 8) {
+        now.setDate(now.getDate() - 1);
+      }
+      const targetDay = now.getDate();
+
+      dateSelect.innerHTML = '';
+      for (let i = 1; i <= 31; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `วันที่ ${i}`;
+        if (i === targetDay) opt.selected = true;
+        dateSelect.appendChild(opt);
+      }
+    }
+
+    function loadMCNameFromStorage() {
+      const savedMC = localStorage.getItem('ace_mc_name');
+      if (savedMC && !document.getElementById('mcInput').value) {
+        document.getElementById('mcInput').value = savedMC;
+      }
+    }
+
+    function loadInitialData(selectedSheetName) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            const headerSheetSelect = document.getElementById('headerSheetSelect');
+            const summarySheetSelect = document.getElementById('summarySheetSelect');
+
+            if (res.allSheets && res.allSheets.length > 0) {
+              headerSheetSelect.innerHTML = '';
+              if (summarySheetSelect) summarySheetSelect.innerHTML = '';
+
+              res.allSheets.forEach(sName => {
+                const optHeader = document.createElement('option');
+                optHeader.value = sName;
+                optHeader.textContent = sName;
+                optHeader.className = 'bg-slate-800 text-slate-200';
+                if (sName === res.sheetName) optHeader.selected = true;
+                headerSheetSelect.appendChild(optHeader);
+
+                if (summarySheetSelect) {
+                  const optSummary = document.createElement('option');
+                  optSummary.value = sName;
+                  optSummary.textContent = sName;
+                  if (sName === res.sheetName) optSummary.selected = true;
+                  summarySheetSelect.appendChild(optSummary);
+                }
+              });
+            }
+
+            const teamSelect = document.getElementById('teamSelect');
+            teamSelect.innerHTML = '';
+            availableTeams = res.teams || [];
+
+            if (availableTeams.length > 0) {
+              availableTeams.forEach(team => {
+                const opt = document.createElement('option');
+                opt.value = team;
+                opt.textContent = team;
+                teamSelect.appendChild(opt);
+              });
+              const savedTeam = localStorage.getItem('ace_selected_team');
+              if (savedTeam && availableTeams.includes(savedTeam)) teamSelect.value = savedTeam;
+              fetchVJs();
+            } else {
+              teamSelect.innerHTML = '<option value="">ไม่พบข้อมูลทีมใน Sheet นี้</option>';
+              toggleVJState('empty');
+            }
+            populateTeamDropdowns();
+          } else {
+            showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + res.error, 'error');
+          }
+        })
+        .getInitialData(selectedSheetName || '');
+    }
+
+    function onHeaderSheetChange() {
+      const selectedSheet = document.getElementById('headerSheetSelect').value;
+      if (!selectedSheet) return;
+
+      const summarySheetSelect = document.getElementById('summarySheetSelect');
+      if (summarySheetSelect) summarySheetSelect.value = selectedSheet;
+
+      showToast(`สลับไปชีต "${selectedSheet}" เรียบร้อยแล้ว`, 'success');
+      loadInitialData(selectedSheet);
+    }
+
+    function populateTeamDropdowns() {
+      const kpiTeamFilter = document.getElementById('kpiTeamFilterSelect');
+      const kpiAutoTeam = document.getElementById('kpiAutoTeamSelect');
+      const kpiManualTeam = document.getElementById('kpiManualTeamSelect');
+
+      if (kpiTeamFilter) {
+        kpiTeamFilter.innerHTML = '<option value="ALL">-- แสดง VJ ทุกทีม --</option>';
+        availableTeams.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t; opt.textContent = `ทีม: ${t}`;
+          kpiTeamFilter.appendChild(opt);
+        });
+      }
+
+      [kpiAutoTeam, kpiManualTeam].forEach(sel => {
+        if (sel) {
+          sel.innerHTML = '<option value="">-- เลือกทีม --</option>';
+          availableTeams.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t; opt.textContent = t;
+            sel.appendChild(opt);
+          });
+        }
+      });
+    }
+
+    function onTeamOrDateChange() {
+      const team = document.getElementById('teamSelect').value;
+      if (team) localStorage.setItem('ace_selected_team', team);
+      fetchVJs();
+    }
+
+    function fetchVJs() {
+      const team = document.getElementById('teamSelect').value;
+      const date = document.getElementById('dateSelect').value;
+      const selectedSheet = document.getElementById('headerSheetSelect').value;
+
+      if (!team) return toggleVJState('empty');
+
+      toggleVJState('loading');
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            currentVJs = res.vjs || [];
+            if (res.mcName && res.mcName.trim() !== '') document.getElementById('mcInput').value = res.mcName.trim();
+            renderVJList();
+          } else {
+            showToast('ดึงข้อมูล VJ ล้มเหลว: ' + res.error, 'error');
+            toggleVJState('empty');
+          }
+        })
+        .getVJsByTeam(team, date, selectedSheet);
+    }
+
+    function toggleVJState(state) {
+      document.getElementById('vjLoading').classList.add('hidden');
+      document.getElementById('vjContainer').classList.add('hidden');
+      document.getElementById('vjEmpty').classList.add('hidden');
+
+      if (state === 'loading') document.getElementById('vjLoading').classList.remove('hidden');
+      else if (state === 'content') document.getElementById('vjContainer').classList.remove('hidden');
+      else if (state === 'empty') document.getElementById('vjEmpty').classList.remove('hidden');
+    }
+
+function renderVJList() {
+  if (!currentVJs || currentVJs.length === 0) {
+    toggleVJState('empty');
+    updateReportText();
+    return;
+  }
+
+  const container = document.getElementById('vjContainer');
+  container.innerHTML = '';
+
+  currentVJs.forEach((vj, index) => {
+    const row = document.createElement('div');
+    // ปรับสไตล์การ์ดแถว VJ ให้กระชับ เรียงเป็นแนวนอนอย่างมีระเบียบ
+    row.className = 'bg-slate-900/90 border border-slate-700/80 rounded-xl p-2.5 flex flex-row items-center justify-between gap-3 hover:border-purple-500/50 transition-all duration-200';
+    row.innerHTML = `
+      <div class="flex items-center gap-3 min-w-0">
+        <!-- รูปโปรไฟล์แบบวงกลมขนาดพอดี (Circular Avatar) -->
+        <img src="${vj.profilePic}" 
+             onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(vj.vjName)}&background=7c3aed&color=fff&bold=true&size=256'" 
+             class="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover aspect-square ring-2 ring-purple-500/40 shadow-md shrink-0 border border-slate-700">
+        <div class="truncate">
+          <span class="text-xs sm:text-sm font-bold text-white block truncate leading-tight">${vj.vjName}</span>
+          <span class="text-[10px] sm:text-xs text-purple-300 block truncate mt-0.5">
+            <i class="fa-brands fa-tiktok text-pink-400 mr-1"></i>${vj.tiktokId || '-'}
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <input type="text" id="vj_input_${index}" value="${vj.value !== undefined ? vj.value : ''}" oninput="onVJInputChange(${index}, this.value)" placeholder="0 / OFF / HOLIDAY" class="w-24 sm:w-32 bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium text-center">
+        <div class="flex items-center gap-1">
+          <button onclick="quickSetVJ(${index}, 'OFF')" class="text-[10px] sm:text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition font-semibold">OFF</button>
+          <button onclick="quickSetVJ(${index}, 'HOLIDAY')" class="text-[10px] sm:text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 transition font-semibold">HOLIDAY</button>
+          <button onclick="quickSetVJ(${index}, '0')" class="text-[10px] sm:text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition font-semibold">0</button>
+        </div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+
+  toggleVJState('content');
+  updateReportText();
+}
+
+    function quickSetVJ(index, status) {
+      if (currentVJs[index]) {
+        currentVJs[index].value = status;
+        const input = document.getElementById(`vj_input_${index}`);
+        if (input) input.value = status;
+        updateReportText();
+      }
+    }
+
+    function setAllValue(val) {
+      currentVJs.forEach((vj, index) => {
+        vj.value = val;
+        const input = document.getElementById(`vj_input_${index}`);
+        if (input) input.value = val;
+      });
+      updateReportText();
+      showToast(`ตั้งค่าทุกคนเป็น "${val}" เรียบร้อย`, 'success');
+    }
+
+    function onVJInputChange(index, val) {
+      if (currentVJs[index]) {
+        currentVJs[index].value = val.trim();
+        updateReportText();
+      }
+    }
+
+    function updateReportText() {
+      const teamName = document.getElementById('teamSelect').value || '-';
+      const date = document.getElementById('dateSelect').value || '-';
+      const mcName = document.getElementById('mcInput').value.trim() || '-';
+      if (mcName !== '-') localStorage.setItem('ace_mc_name', mcName);
+
+      let totalDiamonds = 0, liveCount = 0;
+      let mvpName = '-', mvpDiamonds = 0;
+      let liveVJs = [];
+      let offVJs = [];
+
+      currentVJs.forEach(vj => {
+        const rawVal = vj.value !== undefined ? vj.value.toString().trim() : '';
+        const upperVal = rawVal.toUpperCase();
+        const numVal = parseFloat(rawVal.replace(/,/g, ''));
+
+        if (upperVal === 'OFF' || upperVal === 'HOLIDAY' || rawVal === '' || numVal === 0) {
+          offVJs.push({ name: vj.vjName, status: rawVal || 'off' });
+        } else if (!isNaN(numVal) && numVal > 0) {
+          totalDiamonds += numVal;
+          liveCount++;
+          liveVJs.push({ name: vj.vjName, diamonds: numVal, display: `${numVal.toLocaleString()} 💎` });
+          if (numVal > mvpDiamonds) {
+            mvpDiamonds = numVal;
+            mvpName = vj.vjName;
+          }
+        } else {
+          offVJs.push({ name: vj.vjName, status: rawVal });
+        }
+      });
+
+      document.getElementById('statTotalDiamonds').textContent = `${totalDiamonds.toLocaleString()} 💎`;
+      document.getElementById('statLiveCount').textContent = `${liveCount} / ${currentVJs.length} คน`;
+      document.getElementById('statMVP').textContent = mvpDiamonds > 0 ? `${mvpName} (${mvpDiamonds.toLocaleString()})` : '-';
+
+      let vjLiveLinesTH = [], vjLiveLinesCN = [];
+      liveVJs.forEach((v, i) => {
+        vjLiveLinesTH.push(`${i + 1}. ${v.name}: ${v.display}`);
+        vjLiveLinesCN.push(`${i + 1}. ${v.name}: ${v.display}`);
+      });
+
+      let vjOffLinesTH = [], vjOffLinesCN = [];
+      offVJs.forEach((v, i) => {
+        vjOffLinesTH.push(`${i + 1}. ${v.name}: ${v.status}`);
+        vjOffLinesCN.push(`${i + 1}. ${v.name}: ${v.status}`);
+      });
+
+      const formattedTotal = totalDiamonds.toLocaleString();
+      const mvpText = mvpDiamonds > 0 ? `${mvpName} (${mvpDiamonds.toLocaleString()} 💎)` : '-';
+
+      const monthNamesTH = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+      const monthNamesCN = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+      
+      const now = new Date();
+      if (now.getHours() < 8) now.setDate(now.getDate() - 1);
+      
+      const currentMonthTH = monthNamesTH[now.getMonth()];
+      const currentMonthCN = monthNamesCN[now.getMonth()];
+      const currentYearBE = now.getFullYear() + 543;
+      const currentYearAD = now.getFullYear();
+
+      const liveSectionTH = vjLiveLinesTH.length > 0 ? vjLiveLinesTH.join('\n') : '- ไม่มี -';
+      const offSectionTH = vjOffLinesTH.length > 0 ? vjOffLinesTH.join('\n') : '- ไม่มี -';
+
+      const liveSectionCN = vjLiveLinesCN.length > 0 ? vjLiveLinesCN.join('\n') : '- 无 -';
+      const offSectionCN = vjOffLinesCN.length > 0 ? vjOffLinesCN.join('\n') : '- 无 -';
+
+      const reportTH = `📊 รายงานสรุปผลยอด LIVE ประจำวันที่ ${date} เดือน ${currentMonthTH} ${currentYearBE} (รอบ 08.00 น.)\n🏰 ทีม / ห้อง LIVE: ${teamName}\n💎 ยอด Diamond รวมทีม: ${formattedTotal} 💎\n👤 จำนวน VJ ที่มา LIVE: ${liveCount} / ${currentVJs.length} คน\n🏆 VJ ทำยอดสูงสุด (MVP): ${mvpText}\n🎙️ MC ผู้ดูแล: ${mcName}\n\n--------------------------------\n📝 รายละเอียด VJ ที่มาไลฟ์แต่ละคน:\n${liveSectionTH}\n--------------------------------\n📝 รายละเอียด VJ ที่ไม่มาไลฟ์ :\n${offSectionTH}\n--------------------------------\n✨ สร้างอัตโนมัติโดย ACE LIVE Tracking`;
+
+      const reportCN = `📊 直播业绩汇总报告 ${currentYearAD}年${currentMonthCN}${date}日 (08:00更新)\n🏰 团队 / 直播间：${teamName}\n💎 团队 Diamond 总计：${formattedTotal} 💎\n👤 开播 VJ 人数：${liveCount} / ${currentVJs.length} 人\n🏆 业绩最高 VJ (MVP)：${mvpText}\n🎙️ 值班 MC：${mcName}\n\n--------------------------------\n📝 开播 VJ 详细业绩：\n${liveSectionCN}\n--------------------------------\n📝 未开播 VJ 明细：\n${offSectionCN}\n--------------------------------\n✨ 由 ACE LIVE Tracking 自动生成`;
+
+      const textarea = document.getElementById('reportTextarea');
+      textarea.value = activeTab === 'TH' ? reportTH : reportCN;
+      textarea.setAttribute('data-th', reportTH);
+      textarea.setAttribute('data-cn', reportCN);
+    }
+
+    function switchTab(lang) {
+      activeTab = lang;
+      const tabTH = document.getElementById('tabTH'), tabCN = document.getElementById('tabCN'), textarea = document.getElementById('reportTextarea');
+      if (lang === 'TH') {
+        tabTH.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 text-white transition';
+        tabCN.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition';
+        textarea.value = textarea.getAttribute('data-th') || '';
+      } else {
+        tabCN.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg bg-pink-600 text-white transition';
+        tabTH.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition';
+        textarea.value = textarea.getAttribute('data-cn') || '';
+      }
+    }
+
+    function copyReport(lang) {
+      const textarea = document.getElementById('reportTextarea');
+      const textToCopy = lang === 'TH' ? textarea.getAttribute('data-th') : textarea.getAttribute('data-cn');
+      if (!textToCopy) return showToast('ไม่มีข้อความให้คัดลอก', 'error');
+
+      navigator.clipboard.writeText(textToCopy).then(() => showToast(`คัดลอกรายงาน (${lang}) สำเร็จแล้ว!`, 'success')).catch(() => {
+        textarea.value = textToCopy; textarea.select(); document.execCommand('copy');
+        showToast(`คัดลอกรายงาน (${lang}) สำเร็จแล้ว!`, 'success');
+      });
+    }
+
+    function saveData() {
+      const team = document.getElementById('teamSelect').value;
+      const date = document.getElementById('dateSelect').value;
+      const selectedSheet = document.getElementById('headerSheetSelect').value;
+
+      if (!team || currentVJs.length === 0) return showToast('กรุณาเลือกทีมและกรอกข้อมูล VJ', 'error');
+
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> <span>กำลังบันทึกลง Sheet...</span>`;
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-lg"></i> <span>บันทึกและกดส่งยอด (Save & Submit Status)</span>`;
+
+          if (res.success) {
+            showToast(res.message, 'success');
+            openCopyReportModal();
+          } else {
+            showToast('บันทึกล้มเหลว: ' + res.message, 'error');
+          }
+        })
+        .saveDailyData({
+          targetSheetName: selectedSheet,
+          teamName: team,
+          date: date,
+          mcName: document.getElementById('mcInput').value.trim(),
+          vjs: currentVJs
+        });
+    }
+
+    let modalActiveTab = 'TH';
+
+    function openCopyReportModal() {
+      const reportTextarea = document.getElementById('reportTextarea');
+      const thText = reportTextarea.getAttribute('data-th') || '';
+      const cnText = reportTextarea.getAttribute('data-cn') || '';
+
+      const modalTextarea = document.getElementById('modalReportTextarea');
+      modalTextarea.setAttribute('data-th', thText);
+      modalTextarea.setAttribute('data-cn', cnText);
+
+      switchModalReportTab(activeTab || 'TH');
+      document.getElementById('copyReportModal').classList.remove('hidden');
+    }
+
+    function closeCopyReportModal() {
+      document.getElementById('copyReportModal').classList.add('hidden');
+    }
+
+    function switchModalReportTab(lang) {
+      modalActiveTab = lang;
+      const tabTH = document.getElementById('modalTabTH');
+      const tabCN = document.getElementById('modalTabCN');
+      const modalTextarea = document.getElementById('modalReportTextarea');
+
+      if (lang === 'TH') {
+        tabTH.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg bg-purple-600 text-white transition';
+        tabCN.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition';
+        modalTextarea.value = modalTextarea.getAttribute('data-th') || '';
+      } else {
+        tabCN.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg bg-pink-600 text-white transition';
+        tabTH.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition';
+        modalTextarea.value = modalTextarea.getAttribute('data-cn') || '';
+      }
+    }
+
+    function copyReportFromModal(lang) {
+      const modalTextarea = document.getElementById('modalReportTextarea');
+      const textToCopy = lang === 'TH' ? modalTextarea.getAttribute('data-th') : modalTextarea.getAttribute('data-cn');
+      if (!textToCopy) return showToast('ไม่มีข้อความให้คัดลอก', 'error');
+
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast(`คัดลอกรายงาน (${lang}) สำเร็จแล้ว!`, 'success');
+      }).catch(() => {
+        modalTextarea.value = textToCopy;
+        modalTextarea.select();
+        document.execCommand('copy');
+        showToast(`คัดลอกรายงาน (${lang}) สำเร็จแล้ว!`, 'success');
+      });
+    }
+
+    function loadSubmissionStatusData() {
+      const sheetVal = document.getElementById('summarySheetSelect').value || '';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            renderSubmissionGrid(res.teams, res.grid);
+            renderSubmissionLogs(res.logs);
+          }
+        })
+        .getSubmissionStatusData(sheetVal);
+    }
+
+    function renderSubmissionGrid(teams, grid) {
+      const headerRow = document.getElementById('submissionHeaderRow');
+      headerRow.innerHTML = '<th class="py-2.5 px-3">ทีม / วันที่</th>';
+      for (let d = 1; d <= 31; d++) {
+        headerRow.innerHTML += `<th class="py-2.5 px-1.5 text-center font-mono text-[10px] w-7">${d}</th>`;
+      }
+
+      const tbody = document.getElementById('submissionTbody');
+      tbody.innerHTML = '';
+
+      if (!teams || teams.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="32" class="py-4 text-center text-slate-400">ไม่พบข้อมูลทีม</td></tr>`;
+        return;
+      }
+
+      teams.forEach(team => {
+        let trHtml = `<td class="py-2 px-3 font-semibold text-white truncate max-w-[120px]">${team}</td>`;
+        for (let d = 1; d <= 31; d++) {
+          const isSubmitted = grid[team] && grid[team][d];
+          if (isSubmitted) {
+            trHtml += `<td class="py-2 px-1 text-center"><span class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 inline-flex items-center justify-center text-[9px]" title="วันที่ ${d}: ส่งยอดแล้ว"><i class="fa-solid fa-check"></i></span></td>`;
+          } else {
+            trHtml += `<td class="py-2 px-1 text-center"><span class="w-4 h-4 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 inline-flex items-center justify-center text-[9px]" title="วันที่ ${d}: ยังไม่ส่งยอด"><i class="fa-solid fa-xmark"></i></span></td>`;
+          }
+        }
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-700/30 transition';
+        tr.innerHTML = trHtml;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderSubmissionLogs(logs) {
+      const tbody = document.getElementById('submissionLogsTbody');
+      tbody.innerHTML = '';
+      if (!logs || logs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-400">ยังไม่มีประวัติการส่งยอด</td></tr>`;
+        return;
+      }
+
+      logs.forEach(l => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-700/30 transition';
+        tr.innerHTML = `
+          <td class="py-2 px-3 font-mono text-purple-300">${l.timestamp}</td>
+          <td class="py-2 px-3 text-slate-300">${l.month}</td>
+          <td class="py-2 px-3 text-center font-bold text-amber-300">วันที่ ${l.day}</td>
+          <td class="py-2 px-3 text-white font-semibold">${l.team}</td>
+          <td class="py-2 px-3 text-emerald-300">${l.mc}</td>
+          <td class="py-2 px-3 text-right font-bold text-emerald-400">${l.total} 💎</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function loadSummaryData() {
+      const loading = document.getElementById('summaryLoading');
+      const content = document.getElementById('summaryContent');
+      const sheetSelect = document.getElementById('summarySheetSelect');
+
+      loading.classList.remove('hidden');
+      content.classList.add('hidden');
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          loading.classList.add('hidden');
+          if (res.success) {
+            currentSummaryData = res;
+            if (res.allSheets && res.allSheets.length > 0) {
+              sheetSelect.innerHTML = '';
+              res.allSheets.forEach(sName => {
+                const opt = document.createElement('option');
+                opt.value = sName; opt.textContent = sName;
+                if (sName === res.sheetName) opt.selected = true;
+                sheetSelect.appendChild(opt);
+              });
+            }
+            renderSummaryDashboard(res);
+            content.classList.remove('hidden');
+          } else showToast('ดึงข้อมูลสรุปล้มเหลว: ' + res.error, 'error');
+        })
+        .getSummaryData(sheetSelect.value || '');
+    }
+
+    function renderSummaryDashboard(data) {
+      document.getElementById('sumGrandTotal').textContent = `${data.grandTotal.toLocaleString()} 💎`;
+      document.getElementById('sumTopTeam').textContent = data.teamsSummary.length > 0 ? data.teamsSummary[0].teamName : '-';
+      document.getElementById('sumTopVJ').textContent = data.topVJs.length > 0 ? `${data.topVJs[0].vjName} (${data.topVJs[0].total.toLocaleString()})` : '-';
+      document.getElementById('sumDailyAvg').textContent = `${Math.round(data.grandTotal / 30).toLocaleString()} 💎`;
+
+      const teamsTbody = document.getElementById('teamsSummaryTableBody');
+      teamsTbody.innerHTML = '';
+
+      if (data.teamsSummary && data.teamsSummary.length > 0) {
+        data.teamsSummary.forEach((t, i) => {
+          const avgPerVJ = t.vjCount > 0 ? Math.round(t.totalDiamonds / t.vjCount) : 0;
+          const sharePercent = data.grandTotal > 0 ? ((t.totalDiamonds / data.grandTotal) * 100).toFixed(1) : '0.0';
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-700/30 transition';
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 font-bold text-purple-400">#${i + 1}</td>
+            <td class="py-2.5 px-3 font-semibold text-white">${t.teamName}</td>
+            <td class="py-2.5 px-3 text-center text-slate-300">${t.vjCount} คน</td>
+            <td class="py-2.5 px-3 text-right font-bold text-emerald-400">${t.totalDiamonds.toLocaleString()} 💎</td>
+            <td class="py-2.5 px-3 text-right text-slate-300">${avgPerVJ.toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-center text-amber-300 font-semibold">${sharePercent}%</td>
+          `;
+          teamsTbody.appendChild(tr);
+        });
+
+        const grandTr = document.createElement('tr');
+        grandTr.className = 'bg-purple-900/40 border-t-2 border-purple-500 font-bold text-white';
+        grandTr.innerHTML = `
+          <td class="py-3 px-3 text-amber-300">รวม</td>
+          <td class="py-3 px-3 text-amber-300">ยอดรวมทั้งหมด (Grand Total)</td>
+          <td class="py-3 px-3 text-center text-amber-300">${data.allVJsDetailed ? data.allVJsDetailed.length : 0} คน</td>
+          <td class="py-3 px-3 text-right text-emerald-300 text-sm">${data.grandTotal.toLocaleString()} 💎</td>
+          <td class="py-3 px-3 text-right text-amber-300">${data.allVJsDetailed && data.allVJsDetailed.length > 0 ? Math.round(data.grandTotal / data.allVJsDetailed.length).toLocaleString() : 0}</td>
+          <td class="py-3 px-3 text-center text-amber-300">100%</td>
+        `;
+        teamsTbody.appendChild(grandTr);
+      } else {
+        teamsTbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-400">ไม่พบข้อมูลสรุปทีม</td></tr>`;
+      }
+
+      const teamFilter = document.getElementById('vjTeamFilterSelect');
+      teamFilter.innerHTML = '<option value="ALL">-- แสดง VJ ทั้งหมดทุกทีม --</option>';
+      data.teamsSummary.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.teamName;
+        opt.textContent = `ทีม: ${t.teamName}`;
+        teamFilter.appendChild(opt);
+      });
+
+      renderVJDetailsTable(data.allVJsDetailed);
+
+      const topVJsContainer = document.getElementById('topVJsContainer');
+      topVJsContainer.innerHTML = '';
+      if (data.topVJs && data.topVJs.length > 0) {
+        data.topVJs.forEach((v, i) => {
+          const item = document.createElement('div');
+          item.className = 'bg-slate-900/80 border border-slate-700/70 rounded-xl p-2 flex items-center justify-between gap-2 hover:border-amber-500/40 transition';
+          item.innerHTML = `
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center shrink-0 ${i === 0 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-700 text-slate-300'}">#${i + 1}</span>
+              <img src="${v.profilePic}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(v.vjName)}&background=7c3aed&color=fff&bold=true&size=256'" class="w-8 h-8 rounded-full object-cover aspect-square ring-1 ring-amber-500/30 shadow-sm shrink-0">
+              <div class="truncate">
+                <p class="text-xs font-semibold text-white truncate leading-tight">${v.vjName}</p>
+                <p class="text-[10px] text-slate-400 truncate">ทีม: ${v.teamName} | TikTok: ${v.tiktokId}</p>
+              </div>
+            </div>
+            <span class="text-xs font-bold text-amber-300 shrink-0">${v.total.toLocaleString()} 💎</span>
+          `;
+          topVJsContainer.appendChild(item);
+        });
+      }
+
+      let labels = [], values = [];
+      for (let d = 1; d <= 31; d++) {
+        labels.push(`วันที่ ${d}`);
+        values.push(data.dailyTotals[d] || 0);
+      }
+      renderChart(labels, values);
+    }
+
+    function renderVJDetailsTable(vjList) {
+      const tbody = document.getElementById('vjDetailsTableBody');
+      tbody.innerHTML = '';
+      if (!vjList || vjList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-slate-400">ไม่พบข้อมูลรายละเอียด VJ</td></tr>`;
+        return;
+      }
+
+      vjList.forEach((v, idx) => {
+        const percent = v.kpiProgress || 0;
+        let badgeColor = 'bg-slate-700 text-slate-300';
+        if (percent >= 100) badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        else if (percent >= 50) badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/40';
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-700/30 transition';
+        tr.innerHTML = `
+          <td class="py-2 px-3 font-semibold text-purple-400">#${idx + 1}</td>
+          <td class="py-2 px-3">
+            <div class="flex items-center gap-2">
+              <img src="${v.profilePic}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(v.vjName)}&background=7c3aed&color=fff&bold=true&size=256'" class="w-7 h-7 rounded-full object-cover aspect-square ring-1 ring-purple-500/40 shadow-sm shrink-0">
+              <span class="font-semibold text-white truncate">${v.vjName}</span>
+            </div>
+          </td>
+          <td class="py-2 px-3 text-purple-300">${v.tiktokId || '-'}</td>
+          <td class="py-2 px-3 text-slate-300">${v.teamName}</td>
+          <td class="py-2 px-3 text-center text-slate-300">${v.activeDays || 0} วัน</td>
+          <td class="py-2 px-3 text-right text-slate-400">${(v.targetDiamond || 0).toLocaleString()} 💎</td>
+          <td class="py-2 px-3 text-right font-bold text-emerald-400">${v.total.toLocaleString()} 💎</td>
+          <td class="py-2 px-3 text-center">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeColor}">${percent}%</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterVJDetailsTable() {
+      if (!currentSummaryData || !currentSummaryData.allVJsDetailed) return;
+      const selectedTeam = document.getElementById('vjTeamFilterSelect').value;
+      if (selectedTeam === 'ALL') {
+        renderVJDetailsTable(currentSummaryData.allVJsDetailed);
+      } else {
+        const filtered = currentSummaryData.allVJsDetailed.filter(v => v.teamName === selectedTeam);
+        renderVJDetailsTable(filtered);
+      }
+    }
+
+    function renderChart(labels, values) {
+      const ctx = document.getElementById('diamondsChart').getContext('2d');
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'ยอด Diamond รวม',
+            data: values,
+            borderColor: '#c084fc',
+            backgroundColor: 'rgba(192, 132, 252, 0.15)',
+            fill: true,
+            tension: 0.3,
+            borderWidth: 2,
+            pointBackgroundColor: '#e879f9'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+          }
+        }
+      });
+    }
+
+    function exportToExcelMultiSheet() {
+      if (!currentSummaryData) return showToast('ไม่มีข้อมูลสำหรับ Export', 'error');
+
+      const workbook = XLSX.utils.book_new();
+
+      const summarySheetData = currentSummaryData.teamsSummary.map((item, idx) => ({
+        'ลำดับ': idx + 1,
+        'ทีม / ห้อง LIVE': item.teamName,
+        'จำนวน VJ (คน)': item.vjCount,
+        'ยอดรวม Diamond': item.totalDiamonds,
+        'เฉลี่ยต่อคน': item.vjCount > 0 ? Math.round(item.totalDiamonds / item.vjCount) : 0,
+        'สัดส่วน %': currentSummaryData.grandTotal > 0 ? `${((item.totalDiamonds / currentSummaryData.grandTotal) * 100).toFixed(1)}%` : '0%'
+      }));
+
+      summarySheetData.push({
+        'ลำดับ': '-',
+        'ทีม / ห้อง LIVE': 'ยอดรวมทั้งหมด (Grand Total)',
+        'จำนวน VJ (คน)': currentSummaryData.allVJsDetailed ? currentSummaryData.allVJsDetailed.length : 0,
+        'ยอดรวม Diamond': currentSummaryData.grandTotal,
+        'เฉลี่ยต่อคน': currentSummaryData.allVJsDetailed && currentSummaryData.allVJsDetailed.length > 0 
+          ? Math.round(currentSummaryData.grandTotal / currentSummaryData.allVJsDetailed.length) : 0,
+        'สัดส่วน %': '100%'
+      });
+
+      const wsSummary = XLSX.utils.json_to_sheet(summarySheetData);
+      XLSX.utils.book_append_sheet(workbook, wsSummary, "สรุปภาพรวม");
+
+      if (currentSummaryData.allVJsDetailed && currentSummaryData.allVJsDetailed.length > 0) {
+        const vjSheetData = currentSummaryData.allVJsDetailed.map((v, idx) => ({
+          'ลำดับ': idx + 1,
+          'ชื่อ VJ': v.vjName,
+          'TikTok ID': v.tiktokId || '-',
+          'สังกัดทีม': v.teamName,
+          'จำนวนวันที่ LIVE': v.activeDays || 0,
+          'เป้าหมาย KPI': v.targetDiamond || 0,
+          'ยอดรวม Diamond': v.total || 0,
+          '% ความสำเร็จ KPI': `${v.kpiProgress || 0}%`
+        }));
+        const wsVJ = XLSX.utils.json_to_sheet(vjSheetData);
+        XLSX.utils.book_append_sheet(workbook, wsVJ, "รายละเอียด VJ");
+      }
+
+      XLSX.writeFile(workbook, `ACE_LIVE_Summary_${currentSummaryData.sheetName || 'Report'}.xlsx`);
+      showToast('ส่งออกไฟล์ Excel เรียบร้อยแล้ว!', 'success');
+    }
+
+    function previewAndDownloadPDF() {
+      if (!currentSummaryData) return showToast('ไม่มีข้อมูลสำหรับสร้าง PDF', 'error');
+
+      const data = currentSummaryData;
+      const now = new Date();
+      const printTime = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} น.`;
+      const printerName = loggedUserInfo ? (loggedUserInfo.name || loggedUserInfo.username) : 'Admin';
+
+      let teamTrHtml = '';
+      data.teamsSummary.forEach((t, i) => {
+        const avg = t.vjCount > 0 ? Math.round(t.totalDiamonds / t.vjCount) : 0;
+        const share = data.grandTotal > 0 ? ((t.totalDiamonds / data.grandTotal) * 100).toFixed(1) : '0';
+        const rowBg = i % 2 === 0 ? '#f8fafc' : '#ffffff';
+        teamTrHtml += `<tr style="background: ${rowBg};">
+          <td style="padding: 6px 8px; text-align: center; font-weight: 700; color: #7e22ce;">#${i + 1}</td>
+          <td style="padding: 6px 8px; font-weight: 700; color: #0f172a;">${t.teamName}</td>
+          <td style="padding: 6px 8px; text-align: center; color: #475569;">${t.vjCount} คน</td>
+          <td style="padding: 6px 8px; text-align: right; font-weight: 800; color: #059669;">${t.totalDiamonds.toLocaleString()} 💎</td>
+          <td style="padding: 6px 8px; text-align: right; color: #475569;">${avg.toLocaleString()}</td>
+          <td style="padding: 6px 8px; text-align: center; font-weight: 700; color: #d97706;">${share}%</td>
+        </tr>`;
+      });
+
+      let topVJHtml = '';
+      data.topVJs.forEach((v, i) => {
+        topVJHtml += `<div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 6px 8px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="background: #a855f7; color: white; border-radius: 4px; padding: 1px 5px; font-weight: 800; font-size: 9px;">#${i + 1}</span>
+            <div>
+              <strong style="color: #0f172a; font-size: 10px; display: block;">${v.vjName}</strong>
+              <span style="color: #64748b; font-size: 8.5px;">ทีม: ${v.teamName} | TikTok: ${v.tiktokId}</span>
+            </div>
+          </div>
+          <strong style="color: #d97706; font-size: 10px;">${v.total.toLocaleString()} 💎</strong>
+        </div>`;
+      });
+
+      let vjTrHtml = '';
+      data.allVJsDetailed.forEach((v, i) => {
+        const rowBg = i % 2 === 0 ? '#f8fafc' : '#ffffff';
+        vjTrHtml += `<tr style="background: ${rowBg};">
+          <td style="padding: 5px 6px; text-align: center; font-weight: 700; color: #7e22ce;">#${i + 1}</td>
+          <td style="padding: 5px 8px; font-weight: 700; color: #0f172a;">${v.vjName}</td>
+          <td style="padding: 5px 8px; color: #6b21a8;">${v.tiktokId || '-'}</td>
+          <td style="padding: 5px 8px; color: #475569;">${v.teamName}</td>
+          <td style="padding: 5px 6px; text-align: center; color: #475569;">${v.activeDays || 0} วัน</td>
+          <td style="padding: 5px 8px; text-align: right; color: #64748b;">${(v.targetDiamond || 0).toLocaleString()} 💎</td>
+          <td style="padding: 5px 8px; text-align: right; font-weight: 800; color: #059669;">${v.total.toLocaleString()} 💎</td>
+          <td style="padding: 5px 6px; text-align: center; font-weight: 700; color: #d97706;">${v.kpiProgress || 0}%</td>
+        </tr>`;
+      });
+
+      const printWindow = window.open('', '_blank', 'width=1280,height=900');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="th">
+        <head>
+          <meta charset="UTF-8">
+          <title>ACE LIVE Tracking - Official Management Report (${data.sheetName})</title>
+          <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+          <style>
+            * { box-sizing: border-box; }
+            body { font-family: 'Kanit', sans-serif; margin: 0; padding: 20px; color: #0f172a; font-size: 9.5px; background: #f8fafc; }
+            .page-container { max-width: 980px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+            .header-banner { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: white; padding: 14px 18px; border-radius: 10px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3.5px solid #a855f7; }
+            .header-left { display: flex; align-items: center; gap: 12px; }
+            .logo-img { height: 38px; max-width: 130px; width: auto; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
+            .header-title { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; }
+            .header-sub { margin: 2px 0 0 0; font-size: 10px; color: #e9d5ff; font-weight: 500; }
+            
+            .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+            .stat-card { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; text-align: center; }
+            .stat-card.emerald { border-top: 3.5px solid #10b981; }
+            .stat-card.purple { border-top: 3.5px solid #a855f7; }
+            .stat-card.amber { border-top: 3.5px solid #f59e0b; }
+            .stat-card.blue { border-top: 3.5px solid #3b82f6; }
+            .stat-label { font-size: 8.5px; font-weight: 700; color: #64748b; text-transform: uppercase; margin: 0 0 3px 0; }
+            .stat-value { font-size: 13px; font-weight: 900; margin: 0; }
+            
+            .section-header { display: flex; align-items: center; gap: 8px; margin: 18px 0 8px 0; border-bottom: 2px solid #6b21a8; padding-bottom: 4px; }
+            .section-title { font-size: 11px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; }
+            
+            table { width: 100%; border-collapse: collapse !important; font-size: 9.5px; margin-bottom: 18px; border: 1.5px solid #64748b; }
+            th, td { border: 1px solid #cbd5e1; }
+            th { background: #0f172a; color: #ffffff; font-weight: 700; padding: 7px 8px; }
+
+            .no-print-bar { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 16px; }
+            .btn { padding: 8px 16px; font-size: 11px; font-weight: 700; border-radius: 8px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: 'Kanit', sans-serif; }
+            .btn-print { background: #059669; color: #ffffff; }
+            .btn-close { background: #64748b; color: #ffffff; }
+            
+            .signatures-wrapper { margin-top: 30px; padding-top: 16px; border-top: 1.5px solid #cbd5e1; page-break-inside: avoid !important; }
+            .signatures-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center; }
+            .sig-card { padding: 10px 6px; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; }
+            .sig-card.ack { border-color: #a855f7; background: #faf5ff; }
+            .sig-title { font-weight: 700; color: #0f172a; margin: 0 0 32px 0; font-size: 9.5px; }
+            .sig-line { border-bottom: 1px dashed #64748b; width: 82%; margin: 0 auto 6px auto; }
+            
+            @media print {
+              .no-print-bar { display: none !important; }
+              body { background: #ffffff; padding: 0; }
+              .page-container { box-shadow: none; padding: 0; max-width: 100%; }
+              .signatures-wrapper { page-break-inside: avoid !important; margin-top: 25px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="no-print-bar">
+            <button class="btn btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> พิมพ์รายงาน / บันทึก PDF</button>
+            <button class="btn btn-close" onclick="window.close()"><i class="fa-solid fa-xmark"></i> ปิดหน้าต่าง</button>
+          </div>
+
+          <div class="page-container">
+            <div class="header-banner">
+              <div class="header-left">
+                <img src="https://postimg.cc/n9mk4x6N/3b6e58d3" onerror="this.src='https://i.postimg.cc/brCBjNLY/424dd7460a4a5bc4c2f6af9bf82404f6.png'" class="logo-img" alt="ACE LIVE Logo">
+                <div>
+                  <h1 class="header-title">ACE LIVE TRACKING</h1>
+                  <p class="header-sub">รายงานสรุปผลการปฏิบัติงาน และยอด Diamond ประจำเดือน ${data.sheetName}</p>
+                </div>
+              </div>
+
+              <div style="text-align: right; font-size: 9px; color: #cbd5e1; border-left: 1.5px solid rgba(168, 85, 247, 0.3); padding-left: 12px;">
+                <p style="margin: 1px 0;">ชีตข้อมูล: <strong style="color: #ffffff;">${data.sheetName}</strong></p>
+                <p style="margin: 1px 0;">วันที่พิมพ์: <strong style="color: #ffffff;">${printTime}</strong></p>
+                <p style="margin: 1px 0;">ผู้ออกรายงาน: <strong style="color: #ffffff;">${printerName}</strong></p>
+              </div>
+            </div>
+
+            <div class="stats-grid">
+              <div class="stat-card emerald">
+                <p class="stat-label">💎 ยอด Diamond รวมทั้งหมด</p>
+                <p class="stat-value" style="color: #059669;">${data.grandTotal.toLocaleString()} 💎</p>
+              </div>
+              <div class="stat-card purple">
+                <p class="stat-label">🏆 ทีมอันดับ 1</p>
+                <p class="stat-value" style="color: #7e22ce;">${data.teamsSummary.length > 0 ? data.teamsSummary[0].teamName : '-'}</p>
+              </div>
+              <div class="stat-card amber">
+                <p class="stat-label">👑 VJ MVP ประจำเดือน</p>
+                <p class="stat-value" style="color: #d97706;">${data.topVJs.length > 0 ? data.topVJs[0].vjName : '-'}</p>
+              </div>
+              <div class="stat-card blue">
+                <p class="stat-label">📅 ยอดเฉลี่ย / วัน</p>
+                <p class="stat-value" style="color: #2563eb;">${Math.round(data.grandTotal / 30).toLocaleString()} 💎</p>
+              </div>
+            </div>
+
+            <div class="section-header">
+              <i class="fa-solid fa-users" style="color: #6b21a8; font-size: 11px;"></i>
+              <h2 class="section-title">1. สรุปผลการดำเนินงานแยกตามทีม (Team Performance Summary)</h2>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 40px; text-align: center;">#</th>
+                  <th style="text-align: left;">ทีม / ห้อง LIVE</th>
+                  <th style="width: 85px; text-align: center;">จำนวน VJ</th>
+                  <th style="width: 130px; text-align: right;">ยอดรวม Diamond (💎)</th>
+                  <th style="width: 110px; text-align: right;">เฉลี่ยต่อคน (💎)</th>
+                  <th style="width: 85px; text-align: center;">สัดส่วน (%)</th>
+                </tr>
+              </thead>
+              <tbody>${teamTrHtml}</tbody>
+            </table>
+
+            <div class="section-header" style="border-color: #d97706;">
+              <i class="fa-solid fa-crown" style="color: #d97706; font-size: 11px;"></i>
+              <h2 class="section-title">2. อันดับ Top 10 VJ ประจำเดือน (Top 10 VJ Leaderboard)</h2>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 18px;">
+              ${topVJHtml}
+            </div>
+
+            <div class="section-header" style="border-color: #334155;">
+              <i class="fa-solid fa-list-check" style="color: #334155; font-size: 11px;"></i>
+              <h2 class="section-title">3. รายละเอียดผลงาน VJ รายบุคคล (Detailed VJ Performance)</h2>
+            </div>
+            <table>
+              <thead>
+                <tr style="background: #1e293b;">
+                  <th style="width: 35px; text-align: center;">#</th>
+                  <th style="text-align: left;">ชื่อ VJ</th>
+                  <th style="text-align: left;">TikTok ID</th>
+                  <th style="text-align: left;">สังกัดทีม</th>
+                  <th style="width: 60px; text-align: center;">วัน LIVE</th>
+                  <th style="width: 95px; text-align: right;">เป้า KPI</th>
+                  <th style="width: 105px; text-align: right;">ยอด Diamond</th>
+                  <th style="width: 70px; text-align: center;">% สำเร็จ</th>
+                </tr>
+              </thead>
+              <tbody>${vjTrHtml}</tbody>
+            </table>
+
+            <div class="signatures-wrapper">
+              <div class="signatures-grid">
+                <div class="sig-card">
+                  <p class="sig-title">ผู้รายงานข้อมูล (Prepared By)</p>
+                  <div class="sig-line"></div>
+                  <p style="font-size: 8px; color: #475569; margin: 0;">(...................................................)</p>
+                  <p style="font-size: 7.5px; color: #94a3b8; margin-top: 3px;">วันที่ ......./......./.......</p>
+                </div>
+
+                <div class="sig-card">
+                  <p class="sig-title">ผู้ตรวจสอบ (Verified By)</p>
+                  <div class="sig-line"></div>
+                  <p style="font-size: 8px; color: #475569; margin: 0;">(...................................................)</p>
+                  <p style="font-size: 7.5px; color: #94a3b8; margin-top: 3px;">วันที่ ......./......./.......</p>
+                </div>
+
+                <div class="sig-card ack">
+                  <p class="sig-title" style="color: #6b21a8;">ผู้รับทราบ (Acknowledged By)</p>
+                  <div class="sig-line" style="border-color: #a855f7;"></div>
+                  <p style="font-size: 8px; color: #6b21a8; margin: 0;">(...................................................)</p>
+                  <p style="font-size: 7.5px; color: #94a3b8; margin-top: 3px;">วันที่ ......./......./.......</p>
+                </div>
+
+                <div class="sig-card">
+                  <p class="sig-title">ผู้อนุมัติ (Approved By)</p>
+                  <div class="sig-line"></div>
+                  <p style="font-size: 8px; color: #475569; margin: 0;">(...................................................)</p>
+                  <p style="font-size: 7.5px; color: #94a3b8; margin-top: 3px;">วันที่ ......./......./.......</p>
+                </div>
+              </div>
+
+              <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #94a3b8;">
+                <span>ACE LIVE Tracking System &copy; Official Management Report</span>
+                <span>เอกสารสำคัญใช้ภายในองค์กรเท่านั้น</span>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+
+    function closePDFModal() {
+      document.getElementById('pdfPreviewModal').classList.add('hidden');
+    }
+
+    function downloadPDFFile() {
+      const element = document.getElementById('pdfReportContent');
+      const sheetName = currentSummaryData ? currentSummaryData.sheetName : 'Report';
+      showToast('กำลังดาวน์โหลดไฟล์ PDF...', 'success');
+
+      const opt = {
+        margin:       [0.2, 0.2, 0.2, 0.2],
+        filename:     `ACE_LIVE_Summary_${sheetName}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, allowTaint: true },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+      };
+
+      html2pdf().set(opt).from(element).save().then(() => {
+        showToast('ดาวน์โหลด PDF เรียบร้อยแล้ว!', 'success');
+      });
+    }
+
+    function printPDFReport() { window.print(); }
+
+    function downloadDirectWordDoc() {
+      if (!currentSummaryData) return showToast('ไม่มีข้อมูลสำหรับ Export DOC', 'error');
+
+      const contentHtml = document.getElementById('pdfReportContent').innerHTML;
+      const header = "<html xmlns:o='urn:schemas-microsoft-microsoft-com:office:office' "+
+            "xmlns:w='urn:schemas-microsoft-microsoft-com:office:word' "+
+            "xmlns='http://www.w3.org/TR/REC-html40'>"+
+            "<head><meta charset='utf-8'><title>Export DOC</title><style>"+
+            "body { font-family: Arial, sans-serif; font-size: 11px; } table { border-collapse: collapse; width: 100%; margin-bottom: 15px; } "+
+            "th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; } "+
+            "th { background-color: #0f172a; color: white; font-weight: bold; } "+
+            "</style></head><body>";
+      const footer = "</body></html>";
+      const sourceHTML = header + contentHtml + footer;
+
+      const blob = new Blob(['\ufeff', sourceHTML], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ACE_LIVE_Summary_${currentSummaryData.sheetName || 'Report'}.doc`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('ดาวน์โหลดไฟล์ Word (.doc) เรียบร้อยแล้ว!', 'success');
+    }
+
+    function createGoogleDocInDrive() {
+      const sheetVal = document.getElementById('summarySheetSelect').value || '';
+      const uName = loggedUserInfo ? (loggedUserInfo.name || loggedUserInfo.username) : 'Admin';
+
+      showToast('กำลังสร้างเอกสารใน Google Drive...', 'success');
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            showToast('สร้างไฟล์ Google Docs เรียบร้อยแล้ว!', 'success');
+            window.open(res.docUrl, '_blank');
+          } else {
+            showToast('สร้างเอกสารล้มเหลว: ' + res.error, 'error');
+          }
+        })
+        .createGoogleDocReport(sheetVal, uName);
+    }
+
+    function initKPIPage() {
+      const kpiMonth = document.getElementById('kpiMonthSelect');
+      if (kpiMonth && currentSummaryData && currentSummaryData.allSheets) {
+        kpiMonth.innerHTML = '';
+        currentSummaryData.allSheets.forEach(sName => {
+          const opt = document.createElement('option');
+          opt.value = sName; opt.textContent = sName;
+          if (sName === currentSummaryData.sheetName) opt.selected = true;
+          kpiMonth.appendChild(opt);
+        });
+      }
+      loadKPIData();
+    }
+
+    function loadKPIData() {
+      const mFilter = document.getElementById('kpiMonthSelect').value || '';
+      const tFilter = document.getElementById('kpiTeamFilterSelect').value || 'ALL';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            currentKPIDataList = res.kpis || [];
+            renderKPITable(currentKPIDataList);
+            renderKPIChart(currentKPIDataList);
+          } else showToast('ดึงข้อมูล KPI ล้มเหลว: ' + res.error, 'error');
+        })
+        .getKPIData(mFilter, tFilter);
+    }
+
+    function renderKPITable(kpis) {
+      const tbody = document.getElementById('kpiTableBody');
+      tbody.innerHTML = '';
+
+      if (!kpis || kpis.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">ไม่พบข้อมูล KPI ในเงื่อนไขที่เลือก</td></tr>`;
+        return;
+      }
+
+      kpis.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-700/30 transition';
+
+        let badgeColor = 'bg-slate-700 text-slate-300';
+        if (item.progress >= 100) badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        else if (item.progress >= 50) badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/40';
+
+        tr.innerHTML = `
+          <td class="py-2 px-3">
+            <div class="flex items-center gap-2">
+              <img src="${item.profilePic}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(item.vjName)}&background=7c3aed&color=fff&bold=true&size=256'" class="w-7 h-7 rounded-full object-cover aspect-square ring-1 ring-purple-500/40 shadow-sm shrink-0">
+              <span class="font-semibold text-white truncate">${item.vjName}</span>
+            </div>
+          </td>
+          <td class="py-2 px-3 text-slate-300">${item.teamName}</td>
+          <td class="py-2 px-3 text-purple-300">${item.tiktokId}</td>
+          <td class="py-2 px-3 text-right font-bold text-amber-400">${item.targetDiamond.toLocaleString()} 💎</td>
+          <td class="py-2 px-3 text-right font-bold text-emerald-400">${item.actualDiamond.toLocaleString()} 💎</td>
+          <td class="py-2 px-3">
+            <div class="flex items-center gap-2">
+              <div class="grow bg-slate-700 h-2 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-amber-500 to-emerald-400 h-full rounded-full transition-all duration-500" style="width: ${Math.min(item.progress, 100)}%"></div>
+              </div>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeColor}">${item.progress}%</span>
+            </div>
+          </td>
+          <td class="py-2 px-3 text-center text-slate-400 text-[11px]">${item.updatedBy}<br><span class="text-[10px] text-slate-500">${item.updatedAt}</span></td>
+          <td class="py-2 px-3 text-center">
+            <button onclick="deleteKPI(${item.row})" class="text-rose-400 hover:text-rose-300 p-1.5 transition"><i class="fa-solid fa-trash-can"></i></button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderKPIChart(kpis) {
+      let totalTarget = 0, totalActual = 0;
+      kpis.forEach(k => {
+        totalTarget += k.targetDiamond;
+        totalActual += k.actualDiamond;
+      });
+
+      document.getElementById('kpiStatTargetTotal').textContent = `${totalTarget.toLocaleString()} 💎`;
+      document.getElementById('kpiStatActualTotal').textContent = `${totalActual.toLocaleString()} 💎`;
+      const avgProg = totalTarget > 0 ? Math.min(Math.round((totalActual / totalTarget) * 100), 100) : 0;
+      document.getElementById('kpiStatAvgProgress').textContent = `${avgProg}%`;
+
+      const ctx = document.getElementById('kpiSummaryChart').getContext('2d');
+      if (kpiChartInstance) kpiChartInstance.destroy();
+
+      const top10 = kpis.slice(0, 10);
+      const labels = top10.map(k => k.vjName);
+      const targets = top10.map(k => k.targetDiamond);
+      const actuals = top10.map(k => k.actualDiamond);
+
+      kpiChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'เป้าหมาย KPI', data: targets, backgroundColor: 'rgba(245, 158, 11, 0.7)', borderRadius: 6 },
+            { label: 'ทำได้จริง', data: actuals, backgroundColor: 'rgba(16, 185, 129, 0.8)', borderRadius: 6 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Kanit' } } } },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+          }
+        }
+      });
+    }
+
+    function switchKPIMode(mode) {
+      const btnAuto = document.getElementById('kpiModeBtnAuto');
+      const btnManual = document.getElementById('kpiModeBtnManual');
+      const btnSingle = document.getElementById('kpiModeBtnSingle');
+
+      const contentAuto = document.getElementById('kpiModeAutoContent');
+      const contentManual = document.getElementById('kpiModeManualContent');
+      const contentSingle = document.getElementById('kpiModeSingleContent');
+
+      [btnAuto, btnManual, btnSingle].forEach(b => b.className = 'py-1.5 px-2 rounded-lg font-semibold text-slate-400 hover:text-white transition truncate');
+      [contentAuto, contentManual, contentSingle].forEach(c => c.classList.add('hidden'));
+
+      if (mode === 'auto') {
+        btnAuto.className = 'py-1.5 px-2 rounded-lg font-semibold bg-amber-600 text-white transition truncate';
+        contentAuto.classList.remove('hidden');
+      } else if (mode === 'manual') {
+        btnManual.className = 'py-1.5 px-2 rounded-lg font-semibold bg-purple-600 text-white transition truncate';
+        contentManual.classList.remove('hidden');
+      } else {
+        btnSingle.className = 'py-1.5 px-2 rounded-lg font-semibold bg-pink-600 text-white transition truncate';
+        contentSingle.classList.remove('hidden');
+      }
+    }
+
+    function previewAutoDistribute() {
+      const team = document.getElementById('kpiAutoTeamSelect').value;
+      const targetVal = parseFloat(document.getElementById('kpiAutoTeamTarget').value) || 0;
+      const previewBox = document.getElementById('kpiAutoPreviewBox');
+
+      if (!team || !currentSummaryData || !currentSummaryData.allVJsDetailed) {
+        previewBox.classList.add('hidden');
+        return;
+      }
+
+      const teamVJs = currentSummaryData.allVJsDetailed.filter(v => v.teamName === team);
+      if (teamVJs.length > 0 && targetVal > 0) {
+        const perVj = Math.round(targetVal / teamVJs.length);
+        document.getElementById('kpiAutoVjCount').textContent = teamVJs.length;
+        document.getElementById('kpiAutoPerVjTarget').textContent = `${perVj.toLocaleString()}`;
+        previewBox.classList.remove('hidden');
+      } else {
+        previewBox.classList.add('hidden');
+      }
+    }
+
+    function submitAutoKPI() {
+      const team = document.getElementById('kpiAutoTeamSelect').value;
+      const targetVal = parseFloat(document.getElementById('kpiAutoTeamTarget').value) || 0;
+      const mVal = document.getElementById('kpiMonthSelect').value || '';
+
+      if (!team || targetVal <= 0) return showToast('กรุณาเลือกทีมและระบุเป้าหมายรวม', 'error');
+      if (!currentSummaryData || !currentSummaryData.allVJsDetailed) return showToast('ไม่มีข้อมูล VJ ในระบบ', 'error');
+
+      const teamVJs = currentSummaryData.allVJsDetailed.filter(v => v.teamName === team);
+      if (teamVJs.length === 0) return showToast('ไม่พบ VJ ในทีมที่เลือก', 'error');
+
+      const perVjTarget = Math.round(targetVal / teamVJs.length);
+      const payloadArray = teamVJs.map(v => ({
+        vjName: v.vjName,
+        targetDiamond: perVjTarget,
+        updatedBy: loggedUserInfo ? (loggedUserInfo.name || loggedUserInfo.username) : 'Admin',
+        month: mVal
+      }));
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            showToast(res.message, 'success');
+            loadKPIData();
+          } else showToast('บันทึกล้มเหลว: ' + res.message, 'error');
+        })
+        .saveBulkKPITargets(payloadArray);
+    }
+
+    function renderManualTeamVJInputs() {
+      const team = document.getElementById('kpiManualTeamSelect').value;
+      const container = document.getElementById('kpiManualVJListContainer');
+      const saveBtn = document.getElementById('btnSaveManualTeamKPI');
+
+      container.innerHTML = '';
+      if (!team || !currentSummaryData || !currentSummaryData.allVJsDetailed) {
+        container.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">กรุณาเลือกทีมเพื่อเริ่มกรอกเป้าหมาย VJ</p>`;
+        saveBtn.classList.add('hidden');
+        return;
+      }
+
+      const teamVJs = currentSummaryData.allVJsDetailed.filter(v => v.teamName === team);
+      if (teamVJs.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">ไม่พบ VJ ในทีมนี้</p>`;
+        saveBtn.classList.add('hidden');
+        return;
+      }
+
+      teamVJs.forEach((v, i) => {
+        const item = document.createElement('div');
+        item.className = 'bg-slate-900 p-2.5 rounded-xl border border-slate-700/80 flex items-center justify-between gap-2';
+        item.innerHTML = `
+          <div class="flex items-center gap-2 min-w-0">
+            <img src="${v.profilePic}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(v.vjName)}&background=7c3aed&color=fff&bold=true&size=256'" class="w-7 h-7 rounded-full object-cover shrink-0">
+            <span class="text-xs font-semibold text-white truncate">${v.vjName}</span>
+          </div>
+          <input type="number" id="kpi_manual_input_${i}" data-vj="${v.vjName}" value="${v.targetDiamond || ''}" placeholder="เป้าหมาย..." class="w-28 bg-slate-800 border border-slate-700 text-emerald-400 font-bold text-xs rounded-lg px-2.5 py-1 focus:outline-none">
+        `;
+        container.appendChild(item);
+      });
+
+      saveBtn.classList.remove('hidden');
+    }
+
+    function submitManualTeamKPI() {
+      const team = document.getElementById('kpiManualTeamSelect').value;
+      const container = document.getElementById('kpiManualVJListContainer');
+      const inputs = container.querySelectorAll('input[data-vj]');
+      const mVal = document.getElementById('kpiMonthSelect').value || '';
+
+      if (!team || inputs.length === 0) return showToast('กรุณาเลือกทีม', 'error');
+
+      const payloadArray = [];
+      inputs.forEach(inp => {
+        const vjName = inp.getAttribute('data-vj');
+        const targetVal = parseFloat(inp.value) || 0;
+        if (vjName) {
+          payloadArray.push({
+            vjName: vjName,
+            targetDiamond: targetVal,
+            updatedBy: loggedUserInfo ? (loggedUserInfo.name || loggedUserInfo.username) : 'Admin',
+            month: mVal
+          });
+        }
+      });
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            showToast(res.message, 'success');
+            loadKPIData();
+          } else showToast('บันทึกล้มเหลว: ' + res.message, 'error');
+        })
+        .saveBulkKPITargets(payloadArray);
+    }
+
+    function handleSaveKPI(event) {
+      event.preventDefault();
+      const vjName = document.getElementById('kpiVJNameInput').value.trim();
+      const target = document.getElementById('kpiTargetValue').value;
+      const mVal = document.getElementById('kpiMonthSelect').value || '';
+
+      if (!vjName || !target) return showToast('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            showToast(res.message, 'success');
+            document.getElementById('kpiForm').reset();
+            loadKPIData();
+          } else showToast('บันทึกล้มเหลว: ' + res.message, 'error');
+        })
+        .saveKPITarget({
+          vjName: vjName,
+          targetDiamond: target,
+          updatedBy: loggedUserInfo ? (loggedUserInfo.name || loggedUserInfo.username) : 'Admin',
+          month: mVal
+        });
+    }
+
+    function deleteKPI(row) {
+      if (!confirm('คุณต้องการลบรายการ KPI นี้ใช่หรือไม่?')) return;
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            showToast(res.message, 'success');
+            loadKPIData();
+          } else showToast('ลบล้มเหลว: ' + res.message, 'error');
+        })
+        .deleteKPITarget(row);
+    }
+
+    function exportKPIToExcel() {
+      if (!currentKPIDataList || currentKPIDataList.length === 0) return showToast('ไม่มีข้อมูล KPI สำหรับ Export', 'error');
+
+      const excelData = currentKPIDataList.map((k, idx) => ({
+        'ลำดับ': idx + 1,
+        'ชื่อ VJ': k.vjName,
+        'สังกัดทีม': k.teamName,
+        'TikTok ID': k.tiktokId,
+        'เป้าหมาย KPI': k.targetDiamond,
+        'ทำได้จริง': k.actualDiamond,
+        '% ความคืบหน้า': `${k.progress}%`,
+        'ผู้บันทึกล่าสุด': k.updatedBy,
+        'เวลาอัปเดต': k.updatedAt
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "KPI Targets");
+      XLSX.writeFile(wb, `ACE_LIVE_KPI_Report.xlsx`);
+      showToast('ส่งออกไฟล์ Excel เรียบร้อยแล้ว!', 'success');
+    }
+
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.textContent = msg;
+      if (type === 'success') {
+        toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-base';
+        toast.className = 'fixed bottom-5 right-5 transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold text-white bg-slate-800 border border-emerald-500/50';
+      } else {
+        toastIcon.className = 'fa-solid fa-triangle-exclamation text-rose-400 text-base';
+        toast.className = 'fixed bottom-5 right-5 transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold text-white bg-slate-800 border border-rose-500/50';
+      }
+
+      setTimeout(() => {
+        toast.className = toast.className.replace('translate-y-0 opacity-100', 'translate-y-20 opacity-0');
+      }, 3500);
+    }
+
+    function checkTodayPendingSubmissions() {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            const pendingCount = res.pendingTeams ? res.pendingTeams.length : 0;
+            const submittedCount = res.submittedTeams ? res.submittedTeams.length : 0;
+            const badge = document.getElementById('notifBadge');
+
+            if (pendingCount > 0) {
+              badge.textContent = pendingCount;
+              badge.classList.remove('hidden');
+            } else {
+              badge.classList.add('hidden');
+            }
+
+            document.getElementById('notifDateBadge').textContent = `วันที่ ${res.day}`;
+            document.getElementById('notifPendingCount').textContent = pendingCount;
+            document.getElementById('notifSubmittedCount').textContent = submittedCount;
+
+            const notifPendingList = document.getElementById('notifPendingList');
+            notifPendingList.innerHTML = '';
+            if (pendingCount > 0) {
+              res.pendingTeams.forEach(t => {
+                notifPendingList.innerHTML += `<span class="px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-200 border border-rose-500/40 text-[10px] font-semibold flex items-center gap-1"><i class="fa-solid fa-clock text-rose-400"></i> ${t}</span>`;
+              });
+            } else {
+              notifPendingList.innerHTML = `<span class="text-[10px] text-emerald-400 font-medium">✨ ส่งยอดครบทุกทีมแล้ว</span>`;
+            }
+
+            const notifSubmittedList = document.getElementById('notifSubmittedList');
+            notifSubmittedList.innerHTML = '';
+            if (submittedCount > 0) {
+              res.submittedTeams.forEach(t => {
+                notifSubmittedList.innerHTML += `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-medium">${t}</span>`;
+              });
+            } else {
+              notifSubmittedList.innerHTML = `<span class="text-[10px] text-slate-400">ยังไม่มีทีมใดส่งยอด</span>`;
+            }
+
+            if (pendingCount > 0) {
+              document.getElementById('alertModalDateBadge').textContent = `วันที่ ${res.day} (${res.sheetName})`;
+              document.getElementById('alertPendingCount').textContent = pendingCount;
+              document.getElementById('alertSubmittedCount').textContent = submittedCount;
+
+              const pendingContainer = document.getElementById('alertPendingTeamsList');
+              pendingContainer.innerHTML = '';
+              res.pendingTeams.forEach(team => {
+                const b = document.createElement('span');
+                b.className = 'px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-200 border border-rose-500/40 text-xs font-semibold flex items-center gap-1';
+                b.innerHTML = `<i class="fa-solid fa-clock text-rose-400"></i> ${team}`;
+                pendingContainer.appendChild(b);
+              });
+
+              const submittedContainer = document.getElementById('alertSubmittedTeamsList');
+              submittedContainer.innerHTML = '';
+              if (submittedCount > 0) {
+                res.submittedTeams.forEach(team => {
+                  const b = document.createElement('span');
+                  b.className = 'px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium';
+                  b.textContent = team;
+                  submittedContainer.appendChild(b);
+                });
+              } else {
+                submittedContainer.innerHTML = `<span class="text-xs text-slate-500">ยังไม่มีทีมใดส่งยอด</span>`;
+              }
+
+              document.getElementById('pendingAlertModal').classList.remove('hidden');
+            }
+          }
+        })
+        .getTodaySubmissionAlert();
+    }
+
+    function toggleNotifDropdown() {
+      const dropdown = document.getElementById('notifDropdown');
+      dropdown.classList.toggle('hidden');
+    }
+
+    document.addEventListener('click', function(event) {
+      const bellBtn = document.getElementById('notifBellBtn');
+      const dropdown = document.getElementById('notifDropdown');
+      if (bellBtn && dropdown && !bellBtn.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    function closePendingAlertModal() {
+      document.getElementById('pendingAlertModal').classList.add('hidden');
+    }
+
+    function goToRecordingPage() {
+      closePendingAlertModal();
+      switchNavPage('form');
+    }
+  </script>
+</body>
+
+</html>
